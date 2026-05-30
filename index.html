@@ -2,13 +2,13 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>VoiceReport 🩻</title>
 <style>
   :root{
     --bg:#0f1419; --panel:#1a212b; --panel2:#222b38; --line:#2e3a4a;
-    --text:#e6edf3; --muted:#8b97a7; --accent:#4da3ff; --rec:#ff4d5e; --ok:#3fd17a;
+    --text:#e6edf3; --muted:#8b97a7; --accent:#4da3ff; --ok:#3fd17a; --err:#ff4d5e;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; background:var(--bg); color:var(--text);
@@ -16,48 +16,37 @@
   body{max-width:760px; margin:0 auto; padding:16px 14px 60px;}
   h1{font-size:18px; margin:4px 0 14px; font-weight:600;}
   h1 small{color:var(--muted); font-weight:400; font-size:13px;}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px;
-    padding:14px; margin-bottom:14px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px;}
   label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
-  input[type=password],input[type=text],textarea,select{
-    width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--line);
-    border-radius:10px; padding:11px 12px; font-size:16px; outline:none;}
-  textarea{resize:vertical; min-height:230px; line-height:1.45; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; white-space:pre;}
+  input[type=password],textarea{width:100%; background:var(--panel2); color:var(--text);
+    border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:16px; outline:none;}
+  #dictation{min-height:90px; line-height:1.5; resize:vertical;}
+  #result{min-height:240px; line-height:1.45; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; white-space:pre; resize:vertical;}
   .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-  button{border:none; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600;
-    color:#fff; background:var(--accent); cursor:pointer;}
+  button{border:none; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600; color:#fff; background:var(--accent); cursor:pointer;}
   button.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
   button:active{transform:translateY(1px);}
-  button:disabled{opacity:.45; cursor:default;}
-  #recBtn{width:100%; padding:22px; font-size:18px; background:var(--accent); touch-action:none; user-select:none; -webkit-user-select:none;}
-  #recBtn.recording{background:var(--rec); animation:pulse 1.1s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,94,.5)}70%{box-shadow:0 0 0 16px rgba(255,77,94,0)}100%{box-shadow:0 0 0 0 rgba(255,77,94,0)}}
+  #goBtn{width:100%; padding:18px; font-size:17px; margin-top:10px;}
   .status{font-size:13px; color:var(--muted); min-height:20px; margin-top:10px;}
-  .status.err{color:var(--rec);} .status.ok{color:var(--ok);}
-  .transcript{font-size:13px; color:var(--muted); background:var(--panel2);
-    border-radius:10px; padding:10px 12px; margin-top:10px; word-break:break-word;}
-  .transcript b{color:var(--accent);}
+  .status.err{color:var(--err);} .status.ok{color:var(--ok);}
   .pill{display:inline-block; font-size:12px; color:var(--ok); background:rgba(63,209,122,.12);
     border:1px solid rgba(63,209,122,.35); border-radius:999px; padding:3px 10px; margin-top:8px;}
   details summary{cursor:pointer; color:var(--muted); font-size:13px;}
   .hint{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5;}
-  /* 模式切換 */
-  .seg{display:flex; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px;}
+  .seg{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px;}
   .seg button{flex:1; border-radius:0; background:var(--panel2); color:var(--muted); font-size:14px; padding:11px;}
   .seg button.on{background:var(--accent); color:#fff;}
 </style>
 </head>
 <body>
 
-<h1>VoiceReport <small>口說打報告 · v1</small></h1>
+<h1>VoiceReport <small>口說打報告 · v2</small></h1>
 
-<!-- ── 模式切換 ── -->
 <div class="seg" id="modeSeg">
-  <button data-mode="free">🆓 免費模式</button>
-  <button data-mode="api">🧠 智慧模式</button>
+  <button data-mode="free">🆓 免費（選模板）</button>
+  <button data-mode="api">🧠 智慧（自動填寫）</button>
 </div>
 
-<!-- ── Settings (僅智慧模式需要) ── -->
 <details class="card" id="cfgCard">
   <summary>⚙️ 設定（OpenAI API key，僅智慧模式需要）</summary>
   <div style="margin-top:12px;">
@@ -67,21 +56,22 @@
       <button class="ghost" id="saveKey">儲存</button>
       <span class="status" id="keyStatus"></span>
     </div>
-    <div class="hint">⚠️ 口述時勿念病歷號／姓名等個資。音訊與文字會送往 OpenAI 雲端。</div>
+    <div class="hint">⚠️ 口述時勿念病歷號／姓名等個資。文字會送往 OpenAI 雲端。</div>
   </div>
 </details>
 
-<!-- ── Record ── -->
+<!-- ① 口述 -->
 <div class="card">
-  <button id="recBtn">🎙️ 按住說話（放開送出）</button>
+  <label>① 口述內容（點下方框 → 按鍵盤上的 🎤 說話，或直接打字）</label>
+  <textarea id="dictation" placeholder="例：CT noncontrast brain, acute hemorrhage at right basal ganglia"></textarea>
+  <button id="goBtn">🔍 產生報告</button>
   <div class="status" id="status">準備就緒</div>
-  <div class="transcript" id="transcript" style="display:none;"></div>
   <div id="matched"></div>
 </div>
 
-<!-- ── Result ── -->
+<!-- ② 結果 -->
 <div class="card">
-  <label>報告結果（可直接編輯）</label>
+  <label>② 報告結果（可直接編輯）</label>
   <textarea id="result" placeholder="結果會出現在這裡…"></textarea>
   <div class="row" style="margin-top:10px;">
     <button id="copyBtn">📋 複製</button>
@@ -92,7 +82,6 @@
 <script>
 /* ============================================================
    模板目錄 — 之後可由 AHK 自動解析重生(目前 6 個)
-   id / name / desc(供智慧模式挑選) / kw(免費模式本地比對) / base
    ============================================================ */
 const TEMPLATES = [
 { id:"ct-brain-nc", name:"CT brain without contrast",
@@ -204,8 +193,6 @@ Other remarkable findings: none.` },
 - The bony structures are unremarkable.` }
 ];
 
-const ASR_VOCAB = "Radiology report dictation. Vocabulary: CT, MRI, MRA, contrast, noncontrast, non-contrast, enhanced, brain, intracranial hemorrhage, midline shift, ventricles, sulci, grey-white matter junction, infarct, infarction, ischemia, edema, mass, lesion, nodule, atrophy, leukoaraiosis, FLAIR, DWI, ADC, paranasal sinuses, orbits, mastoid air cells, chest, lung, pleura, effusion, pneumonia, consolidation, mediastinum, hila, lymphadenopathy, heart, liver, spleen, pancreas, kidneys, adrenal glands, gallbladder, bowel, appendix, hepatic, splenic, renal, pelvis, fracture.";
-
 function buildSystemPrompt(){
   const catalog = TEMPLATES.map((t,i)=>
     `### Template ${i+1} — id:"${t.id}" — ${t.name}\n(${t.desc})\n"""\n${t.base}\n"""`
@@ -232,14 +219,12 @@ ${catalog}`;
 const $=id=>document.getElementById(id);
 const KEY_LS="vr_openai_key", MODE_LS="vr_mode";
 const byId=id=>TEMPLATES.find(t=>t.id===id);
-
 function setStatus(m,c){ const e=$("status"); e.textContent=m; e.className="status "+(c||""); }
 function setKeyStatus(m,c){ const e=$("keyStatus"); e.textContent=m; e.className="status "+(c||""); }
 function getKey(){ return ($("apiKey").value || localStorage.getItem(KEY_LS) || "").trim(); }
-function showTranscript(t){ const e=$("transcript"); e.style.display="block"; e.innerHTML="<b>聽到：</b>"+(t||"").replace(/</g,"&lt;"); }
-function showMatched(id){ const t=byId(id); $("matched").innerHTML = t?`<span class="pill">模板：${t.name}</span>`:""; }
+function showMatched(id){ const t=byId(id); $("matched").innerHTML=t?`<span class="pill">模板：${t.name}</span>`:""; }
 
-/* ── 本地關鍵字選模板(免費模式用,規則式) ── */
+/* ── 本地關鍵字選模板(免費模式,規則式) ── */
 function matchTemplate(text){
   const s=" "+text.toLowerCase()+" ";
   const has=(...ks)=>ks.some(k=>s.includes(k));
@@ -264,12 +249,12 @@ let mode = localStorage.getItem(MODE_LS) || "free";
 function applyMode(){
   [...$("modeSeg").children].forEach(b=>b.classList.toggle("on", b.dataset.mode===mode));
   if(mode==="free"){
-    $("recBtn").textContent="🎙️ 按住說話（免費辨識，放開出模板）";
-    setStatus("免費模式：瀏覽器辨識 + 本地選模板（不需 key）");
+    $("goBtn").textContent="🔍 選模板（免費）";
+    setStatus("免費模式：本地關鍵字選模板，顯示原文（不需 key）");
   }else{
-    $("recBtn").textContent="🎙️ 按住說話（智慧填寫，放開送出）";
-    setStatus(getKey()?"智慧模式：Whisper + gpt-4o-mini":"智慧模式需先到 ⚙️ 填 API key");
-    if(!getKey()) $("cfgCard").open=true;
+    $("goBtn").textContent="🧠 產生報告（自動填寫）";
+    if(!getKey()){ setStatus("智慧模式需先到 ⚙️ 填 API key","err"); $("cfgCard").open=true; }
+    else setStatus("智慧模式：gpt-4o-mini 選模板 + 翻陽性填寫");
   }
 }
 $("modeSeg").addEventListener("click",e=>{
@@ -281,95 +266,42 @@ $("modeSeg").addEventListener("click",e=>{
 $("apiKey").value = localStorage.getItem(KEY_LS) || "";
 $("saveKey").onclick=()=>{ localStorage.setItem(KEY_LS,$("apiKey").value.trim()); setKeyStatus("已儲存 ✓","ok"); applyMode(); };
 
-/* ============================ 免費模式:Web Speech API ============================ */
-let recog=null, recognizing=false, freeText="";
-function freeSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
-function freeStart(){
-  if(!freeSupported()){ setStatus("此瀏覽器不支援免費語音辨識 → 請切『智慧模式』","err"); return; }
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recog=new SR(); recog.lang="en-US"; recog.interimResults=true; recog.continuous=true; recog.maxAlternatives=1;
-  freeText="";
-  recog.onresult=e=>{ let t=""; for(let i=0;i<e.results.length;i++) t+=e.results[i][0].transcript; freeText=t; showTranscript(t+" …"); };
-  recog.onerror=e=>{ setStatus("辨識錯誤："+e.error+(e.error==="not-allowed"?"（請允許麥克風）":""),"err"); recognizing=false; };
-  recog.onend=()=>{ if(recognizing){ recognizing=false; finalizeFree(); } };
-  try{ recog.start(); recognizing=true; setStatus("聆聽中…（放開結束）"); }
-  catch(e){ setStatus("無法啟動辨識："+e.message,"err"); }
-}
-function freeStop(){ if(recog && recognizing) recog.stop(); }
-function finalizeFree(){
-  const t=freeText.trim(); showTranscript(t);
-  if(!t){ setStatus("沒聽到內容，再試一次","err"); return; }
-  const tpl=matchTemplate(t);
-  if(tpl){ $("result").value=tpl.base; showMatched(tpl.id);
-    setStatus("完成 ✓ 免費模式只顯示模板原文；要自動翻陽性填寫請用『智慧模式』","ok"); }
-  else setStatus("聽到了但找不到對應模板：「"+t+"」","err");
-}
-
-/* ============================ 智慧模式:Whisper + LLM ============================ */
-let mediaRecorder=null, chunks=[], stream=null, recMime="";
-function pickMime(){ const c=["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/aac"];
-  for(const m of c){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; } return ""; }
-async function apiStart(){
-  if(!getKey()){ setStatus("請先到 ⚙️ 填 API key","err"); $("cfgCard").open=true; return; }
-  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
-  catch(e){ setStatus("無法取得麥克風："+e.message,"err"); return; }
-  recMime=pickMime(); chunks=[];
-  mediaRecorder = recMime ? new MediaRecorder(stream,{mimeType:recMime}) : new MediaRecorder(stream);
-  mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
-  mediaRecorder.onstop=apiStopped;
-  mediaRecorder.start();
-  setStatus("錄音中…");
-}
-function apiStop(){ if(mediaRecorder && mediaRecorder.state!=="inactive") mediaRecorder.stop(); }
-async function apiStopped(){
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  const blob=new Blob(chunks,{type:recMime||"audio/webm"});
-  if(blob.size<1200){ setStatus("錄音太短，再試一次","err"); return; }
+/* ============================ 產生報告 ============================ */
+$("goBtn").onclick=async()=>{
+  const t=$("dictation").value.trim();
+  if(!t){ setStatus("請先在①口述（或打字）","err"); $("dictation").focus(); return; }
+  $("matched").innerHTML="";
+  if(mode==="free"){
+    const tpl=matchTemplate(t);
+    if(tpl){ $("result").value=tpl.base; showMatched(tpl.id);
+      setStatus("完成 ✓ 免費模式只顯示模板原文；要自動翻陽性請用『智慧』","ok"); }
+    else setStatus("找不到對應模板：「"+t+"」（試著講清楚 CT/MRI + 部位 + contrast）","err");
+    return;
+  }
+  // 智慧模式
+  if(!getKey()){ setStatus("請先填 API key","err"); $("cfgCard").open=true; return; }
   try{
-    setStatus("① 轉錄中（Whisper）…");
-    const text=await transcribe(blob); showTranscript(text);
-    if(!text || text.trim().length<2){ setStatus("沒聽到內容","err"); return; }
-    setStatus("② 填模板中（gpt-4o-mini）…");
-    const {templateId,report}=await fillTemplate(text);
+    setStatus("產生中（gpt-4o-mini）…");
+    const {templateId,report}=await fillTemplate(t);
     $("result").value=report; showMatched(templateId); setStatus("完成 ✓","ok");
   }catch(e){ setStatus("錯誤："+e.message,"err"); }
-}
-async function transcribe(blob){
-  const ext=(recMime.includes("mp4")||recMime.includes("aac"))?"m4a":"webm";
-  const fd=new FormData();
-  fd.append("file",blob,"audio."+ext); fd.append("model","whisper-1");
-  fd.append("language","en"); fd.append("prompt",ASR_VOCAB);
-  const r=await fetch("https://api.openai.com/v1/audio/transcriptions",{
-    method:"POST",headers:{Authorization:"Bearer "+getKey()},body:fd});
-  if(!r.ok) throw new Error("Whisper "+r.status+" "+(await r.text()).slice(0,120));
-  return (await r.json()).text;
-}
+};
+
 async function fillTemplate(transcript){
   const r=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",headers:{Authorization:"Bearer "+getKey(),"Content-Type":"application/json"},
     body:JSON.stringify({model:"gpt-4o-mini",temperature:0.2,response_format:{type:"json_object"},
       messages:[{role:"system",content:buildSystemPrompt()},{role:"user",content:"Dictation: "+transcript}]})});
-  if(!r.ok) throw new Error("Chat "+r.status+" "+(await r.text()).slice(0,120));
+  if(!r.ok) throw new Error("Chat "+r.status+" "+(await r.text()).slice(0,140));
   const txt=(await r.json()).choices[0].message.content;
   let o; try{ o=JSON.parse(txt); }catch(_){ o={templateId:"",report:txt}; } return o;
 }
-
-/* ============================ 按住說話(雙模式) ============================ */
-const rb=$("recBtn"); let holding=false;
-rb.addEventListener("pointerdown",e=>{ e.preventDefault(); holding=true;
-  $("matched").innerHTML=""; rb.classList.add("recording");
-  (mode==="free"?freeStart:apiStart)(); });
-function release(){ if(!holding) return; holding=false; rb.classList.remove("recording");
-  (mode==="free"?freeStop:apiStop)(); }
-rb.addEventListener("pointerup",e=>{ e.preventDefault(); release(); });
-rb.addEventListener("pointercancel",release);
-rb.addEventListener("pointerleave",release);
 
 /* 複製 / 清空 */
 $("copyBtn").onclick=async()=>{ const v=$("result").value;
   try{ await navigator.clipboard.writeText(v); setStatus("已複製 ✓","ok"); }
   catch(_){ $("result").select(); document.execCommand("copy"); setStatus("已複製 ✓","ok"); } };
-$("clearBtn").onclick=()=>{ $("result").value=""; $("transcript").style.display="none"; $("matched").innerHTML=""; applyMode(); };
+$("clearBtn").onclick=()=>{ $("dictation").value=""; $("result").value=""; $("matched").innerHTML=""; applyMode(); };
 
 applyMode();
 </script>
