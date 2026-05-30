@@ -1,0 +1,13 @@
+# Secrets — never commit keys/credentials (API key lives in browser localStorage)
+.env
+.env.*
+*.key
+*.pem
+cookies*.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
