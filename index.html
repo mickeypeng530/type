@@ -229,10 +229,11 @@ function matchTemplate(text){
   const s=" "+text.toLowerCase()+" ";
   const has=(...ks)=>ks.some(k=>s.includes(k));
   const mri    = has("mri","mr i"," mr ","magnetic","gadolinium");
-  const brain  = has("brain","head","cerebr","intracranial","skull");
-  const chest  = has("chest","lung","thorax","pleura","mediastin");
-  const abd    = has("abdomen","abdominal","belly","liver","hepatic");
-  const pelvis = has("pelvis","pelvic");
+  // 別名 = OS 聽寫對非母語口音常見的誤聽(frame≈brain 等),持續補充
+  const brain  = has("brain","head","cerebr","intracranial","skull","frame","brian","grain","brand","brane","plain brain");
+  const chest  = has("chest","lung","thorax","pleura","mediastin","jest","chess");
+  const abd    = has("abdomen","abdominal","belly","liver","hepatic","abdoman","abdomin","domen");
+  const pelvis = has("pelvis","pelvic","pelvi");
   const withc  = has("with contrast","with iv","contrast enhanc","enhanced","with and without","with/without","c plus","c+");
   const woc    = has("without contrast","noncontrast","non contrast","non-contrast","plain","w/o contrast","no contrast");
   const contrast = withc || (has("contrast") && !woc);
@@ -275,7 +276,7 @@ $("goBtn").onclick=async()=>{
     const tpl=matchTemplate(t);
     if(tpl){ $("result").value=tpl.base; showMatched(tpl.id);
       setStatus("完成 ✓ 免費模式只顯示模板原文；要自動翻陽性請用『智慧』","ok"); }
-    else setStatus("找不到對應模板：「"+t+"」（試著講清楚 CT/MRI + 部位 + contrast）","err");
+    else setStatus("聽錯了選不到：「"+t+"」← 口音誤聽請改用『🧠 智慧』模式，它能靠上下文修正","err");
     return;
   }
   // 智慧模式
