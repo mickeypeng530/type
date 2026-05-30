@@ -7,7 +7,10 @@
 走「路線 B」：**OpenAI API + 單檔 SPA**(非 LizardType 的 macOS cookie 方案——那條在 Windows 走不通)。
 
 ## 2. 現在進度到哪
-- ✅ **Phase 1（完成）**：`index.html` 單檔 SPA。錄音 → Whisper 轉錄 → gpt-4o-mini 選模板+填寫 → 顯示可編輯結果 + 複製。iOS Safari / Windows 瀏覽器皆可。
+- ✅ **Phase 1（完成）**：`index.html` 單檔 SPA，**雙模式**：
+  - 🆓 **免費模式（預設）**：瀏覽器 Web Speech API 辨識 + 本地關鍵字規則選模板 → 顯示模板原文。零成本、零 key。用來驗證「手機收得到語音」。
+  - 🧠 **智慧模式**：Whisper 轉錄 → gpt-4o-mini 選模板+翻陽性填寫。需 API key。
+  - iOS Safari / Windows 瀏覽器皆可。
 - ⏳ **Phase 2（待做）**：Firebase RTDB 中繼 + Windows 端 AHK 監聽 → 自動 Ctrl+V 貼進 PACS（手機說、電腦貼）。
 - ⏳ **Phase 3（待做）**：擴充模板(目前 6 個 → 朝 AHK 的 1168 個)；可由 AHK 自動解析重生 `TEMPLATES` 區塊。
 
@@ -26,6 +29,7 @@
 - **模板 #2 vs #3** 內文相同、只差標題(without vs with/without contrast)，靠口述有沒有講 contrast 區分。
 - **MRI 模板**基底不是全正常——預設含老化(atrophy/small vessel)兩行，是科室慣例，別當 bug。
 - **「按住說話」**用 pointer 事件，桌機滑鼠、手機觸控都通。
+- **免費模式 iOS 風險**：Web Speech API(`webkitSpeechRecognition`)在 iOS Safari 支援不穩；不支援時會提示切智慧模式。本地選模板是規則式(`matchTemplate()`)，只認 modality/region/contrast 關鍵字，不會翻陽性。
 
 ## 5. 接手者 cheatsheet
 - 改模板 → 編 `index.html` 裡的 `TEMPLATES` 陣列(`base` 用 backtick 字串，整段原樣貼)。
