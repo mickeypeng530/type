@@ -22,6 +22,7 @@ const PHRASE_MISHEAR = [
   [/\bof our spine\b/g, " of lumbar spine "],  // "lumbosacral spine" → "our spine"
   [/\bwhole body\b/g, " chest abdomen pelvis "],   // 習慣講法(v2 遺產)
   [/\bcap\b/g, " chest abdomen pelvis "],          // "CT CAP"(v2 遺產)
+  [/\bx[\s-]?arys?\b/g, " xray "],                 // "x-ray" 打/聽成 "x ary"(2026-07-12 線上實測)
 ];
 // 口述誤聽別名(OS 聽寫對非母語口音常見誤聽)→ 持續補充
 const MISHEAR = {
@@ -164,6 +165,8 @@ function vrMatch(text, topN=8){
       else if(cdi==="with") s+= e.contrast==="without" ? -3 : 2;
       else if(cdi==="without") s+= e.contrast==="with" ? -3 : (e.contrast==="without"?2:1);
       else                  s+= e.contrast==="with" ? -1 : (e.contrast==="without"?0.5:0);
+    }else if(cdi===null){
+      s+=0.5;   // 平片(無 contrast 概念)在「沒講 contrast」時比照 without 加分,免得被 MRI/CT 白吃 0.5 壓過
     }
     scored.push({id:e.t.id, name:e.t.name, score:s});
   }
