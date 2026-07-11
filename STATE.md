@@ -27,7 +27,7 @@
   - **純瀏覽器版 `whisper.html`（transformers.js，零安裝）已做已測，結論=備胎**：家用機 WebGPU（UHD 770）上 base 快但爛、small 準度中等且僅 0.7× 即時（吃不到 initial_prompt + q4 量化）。只留給「工作站連 Python 都不能裝」的最壞情境，且需靠下游 LLM 拼字救援（Stonosis→stenosis 這類）；能裝就用 faster-whisper。
   - 坑：huggingface_hub 舊版在 Windows 無開發者模式時 symlink 下載會炸（WinError 1314）→ 升級 huggingface_hub 即修。
 - ⏳ **C 手機中繼（選配）**：Firebase RTDB，只在 B 走不通時才做。
-- 🟡 **部署（C 方案,2026-07-11 程式完成,等貼規則+上傳）**：模板庫上鎖——templates.js/phrases.js 不進 repo(.gitignore)，線上版 Google 登入(純 popup)→ RTDB `/voiceReport/*` 載模板，rules 鎖 `deer530530@gmail.com`。**共用 income-41a40 專案**(config 已填好,取自 inc)。本地有 templates.js 則自動走本地模式(零 Firebase 依賴)。相關檔：`firebase-config.js`✓、`database.rules.json`(合併版,整份貼進 Console——含既有 users/paperRadar,別漏)、`admin.html`(本機上傳器)。線上 github.io 目前仍是舊 v2，等上傳 + E2E 測過才推 v3。
+- ✅ **部署（C 方案,2026-07-12 v3 已上線 commit 1bbd1a5）**：模板庫上鎖——templates.js/phrases.js 不進 repo，線上版 Google 登入(純 popup)→ RTDB `/voiceReport/*` 載模板，rules 鎖 `deer530530@gmail.com`(規則已含既有 users/paperRadar,共用 income-41a40)。雲端現況 236/1101(psh、pshid 已清)。模板同步一條命令 `python tools/upload_rtdb.py`(admin key 複製自 Worknum/scripts,gitignored);admin.html 為瀏覽器備援。本地有 templates.js 自動走本地模式。
 - 決策脈絡見 [DECISION_LOG.md](DECISION_LOG.md)。
 
 ## 3. 架構速覽
