@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceReport 模板上雲(admin)</title>
+<style>
+  :root{--bg:#0f1419;--panel:#1a212b;--panel2:#222b38;--line:#2e3a4a;
+    --text:#e6edf3;--muted:#8b97a7;--accent:#4da3ff;--ok:#3fd17a;--err:#ff4d5e;}
+  *{box-sizing:border-box;}
+  body{margin:0 auto;max-width:640px;padding:16px;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI","Noto Sans TC",sans-serif;}
+  h1{font-size:17px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;}
+  button{border:none;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:600;color:#fff;background:var(--accent);cursor:pointer;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .status{font-size:13px;color:var(--muted);min-height:20px;margin-top:10px;white-space:pre-line;}
+  .status.err{color:var(--err);} .status.ok{color:var(--ok);}
+  code{color:var(--accent);}
+</style>
+</head>
+<body>
+<h1>🛠 VoiceReport 模板上雲</h1>
+<div class="card">
+  <div>本地資料:模板 <b id="tc">?</b> 個 / 短語 <b id="pc">?</b> 個
+    <span style="color:var(--muted);font-size:12px">(來自本目錄的 templates.js / phrases.js;改 AHK 後重跑 parser 再開本頁)</span></div>
+  <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button id="loginBtn">🔐 Google 登入</button>
+    <button id="upBtn" disabled>⬆️ 上傳到 RTDB</button>
+    <button id="checkBtn" disabled>🔍 讀回驗證</button>
+  </div>
+  <div class="status" id="st">本頁只能在本機開(templates.js 不進 repo);上傳權限由 RTDB rules 鎖 email。</div>
+</div>
+
+<script src="templates.js"></script>
+<script src="phrases.js"></script>
+<script type="module">
+import { app, configReady } from "./firebase-config.js";
+const $=id=>document.getElementById(id);
+const say=(m,c)=>{ const e=$("st"); e.textContent=m; e.className="status "+(c||""); };
+
+const okLocal = typeof TEMPLATES!=="undefined" && typeof PHRASES!=="undefined";
+$("tc").textContent = okLocal ? TEMPLATES.length : "❌";
+$("pc").textContent = okLocal ? PHRASES.length : "❌";
+if(!okLocal) say("讀不到本地 templates.js / phrases.js——本頁要從專案目錄用本機伺服器開","err");
+else if(!configReady) say("firebase-config.js 還沒填設定","err");
+else{
+  const { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } =
+    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const { getDatabase, ref, set, get } =
+    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const auth=getAuth(app), db=getDatabase(app);
+
+  $("loginBtn").addEventListener("click", async()=>{
+    try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch(e){ say("登入失敗:"+e.code,"err"); }
+  });
+  onAuthStateChanged(auth, user=>{
+    $("upBtn").disabled = $("checkBtn").disabled = !user;
+    if(user) say("已登入:"+user.email+"\n可以上傳了。","ok");
+  });
+
+  $("upBtn").onclick=async()=>{
+    try{
+      say("上傳中……");
+      await set(ref(db,"voiceReport/templates"), TEMPLATES);
+      await set(ref(db,"voiceReport/phrases"), PHRASES);
+      await set(ref(db,"voiceReport/meta"), {
+        templatesCount: TEMPLATES.length,
+        phrasesCount: PHRASES.length,
+        updatedAt: new Date().toISOString(),
+        source: "0 Peng Rclick.ahk via parse_ahk.py",
+      });
+      say(`上傳完成 ✓ 模板 ${TEMPLATES.length} / 短語 ${PHRASES.length}`,"ok");
+    }catch(e){ say("上傳失敗:"+(e.message||e.code)+"\n(rules 沒放行這個 email?)","err"); }
+  };
+
+  $("checkBtn").onclick=async()=>{
+    try{
+      const m=(await get(ref(db,"voiceReport/meta"))).val();
+      const t=(await get(ref(db,"voiceReport/templates"))).val();
+      say(`雲端現況:模板 ${t?t.length:0} 個(meta 記 ${m?.templatesCount ?? "?"}),更新於 ${m?.updatedAt ?? "?"}`,"ok");
+    }catch(e){ say("讀取失敗:"+(e.message||e.code),"err"); }
+  };
+}
+</script>
+</body>
+</html>

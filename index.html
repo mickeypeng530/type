@@ -18,10 +18,11 @@
   h1 small{color:var(--muted); font-weight:400; font-size:13px;}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px;}
   label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
-  input[type=password],textarea{width:100%; background:var(--panel2); color:var(--text);
+  input[type=password],input[type=text],textarea{width:100%; background:var(--panel2); color:var(--text);
     border:1px solid var(--line); border-radius:10px; padding:11px 12px; font-size:16px; outline:none;}
   #dictation{min-height:90px; line-height:1.5; resize:vertical;}
-  #result{min-height:240px; line-height:1.45; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; white-space:pre; resize:vertical;}
+  #result{min-height:220px;} #impression{min-height:80px;}
+  #result,#impression{line-height:1.45; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; white-space:pre; resize:vertical;}
   .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   button{border:none; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600; color:#fff; background:var(--accent); cursor:pointer;}
   button.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
@@ -29,18 +30,28 @@
   #goBtn{width:100%; padding:18px; font-size:17px; margin-top:10px;}
   .status{font-size:13px; color:var(--muted); min-height:20px; margin-top:10px;}
   .status.err{color:var(--err);} .status.ok{color:var(--ok);}
-  .pill{display:inline-block; font-size:12px; color:var(--ok); background:rgba(63,209,122,.12);
-    border:1px solid rgba(63,209,122,.35); border-radius:999px; padding:3px 10px; margin-top:8px;}
+  .pill{display:inline-block; font-size:12px; border-radius:999px; padding:4px 11px; margin:6px 6px 0 0; cursor:pointer;
+    color:var(--muted); background:var(--panel2); border:1px solid var(--line);}
+  .pill b{color:var(--accent); font-family:ui-monospace,Consolas,monospace; font-weight:600;}
+  .pill.on{color:var(--ok); background:rgba(63,209,122,.12); border-color:rgba(63,209,122,.35);}
   details summary{cursor:pointer; color:var(--muted); font-size:13px;}
   .hint{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5;}
   .seg{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px;}
   .seg button{flex:1; border-radius:0; background:var(--panel2); color:var(--muted); font-size:14px; padding:11px;}
   .seg button.on{background:var(--accent); color:#fff;}
+  #impCard{display:none;}
 </style>
 </head>
 <body>
 
-<h1>VoiceReport <small>口說打報告 · v2</small></h1>
+<h1>VoiceReport <small>口說打報告 · v3 · 模板 <span id="tplCount">?</span> 個 <span id="srcBadge"></span></small></h1>
+
+<!-- 雲端模式登入閘門(本地有 templates.js 時自動隱藏)。按鈕必須是靜態 HTML(iOS popup 保險) -->
+<div class="card" id="loginCard" style="display:none">
+  <label>模板庫在雲端(僅授權帳號可讀)</label>
+  <button id="loginBtn" style="width:100%; padding:14px;">🔐 用 Google 登入載入模板</button>
+  <div class="status" id="loginStatus"></div>
+</div>
 
 <div class="seg" id="modeSeg">
   <button data-mode="free">🆓 免費（選模板）</button>
@@ -48,22 +59,26 @@
 </div>
 
 <details class="card" id="cfgCard">
-  <summary>⚙️ 設定（OpenAI API key，僅智慧模式需要）</summary>
+  <summary>⚙️ 設定（API,僅智慧模式需要）</summary>
   <div style="margin-top:12px;">
-    <label>OpenAI API Key（只存在本機瀏覽器 localStorage）</label>
+    <label>API Key（只存在本機瀏覽器 localStorage）</label>
     <input type="password" id="apiKey" placeholder="sk-...">
+    <label style="margin-top:10px;">API Base URL（預設 OpenAI;可填家用 Ollama 端點）</label>
+    <input type="text" id="apiBase" placeholder="https://api.openai.com/v1">
+    <label style="margin-top:10px;">模型</label>
+    <input type="text" id="apiModel" placeholder="gpt-5-mini">
     <div class="row" style="margin-top:10px;">
       <button class="ghost" id="saveKey">儲存</button>
       <span class="status" id="keyStatus"></span>
     </div>
-    <div class="hint">⚠️ 口述時勿念病歷號／姓名等個資。文字會送往 OpenAI 雲端。</div>
+    <div class="hint">⚠️ 口述時勿念病歷號／姓名等個資。智慧模式文字會送往 API 端點。</div>
   </div>
 </details>
 
 <!-- ① 口述 -->
 <div class="card">
-  <label>① 口述內容（點下方框 → 按鍵盤上的 🎤 說話，或直接打字）</label>
-  <textarea id="dictation" placeholder="例：CT noncontrast brain, acute hemorrhage at right basal ganglia"></textarea>
+  <label>① 口述內容（點下方框 → 按鍵盤上的 🎤 說話,或直接打字;打縮寫如 ct2b 可直達）</label>
+  <textarea id="dictation" placeholder="例:CT noncontrast brain, acute hemorrhage at right basal ganglia"></textarea>
   <button id="goBtn">🔍 產生報告</button>
   <div class="status" id="status">準備就緒</div>
   <div id="matched"></div>
@@ -71,240 +86,223 @@
 
 <!-- ② 結果 -->
 <div class="card">
-  <label>② 報告結果（可直接編輯）</label>
+  <label>② 報告結果 Findings（可直接編輯）</label>
   <textarea id="result" placeholder="結果會出現在這裡…"></textarea>
   <div class="row" style="margin-top:10px;">
-    <button id="copyBtn">📋 複製</button>
+    <button id="copyBtn">📋 複製 Findings</button>
     <button class="ghost" id="clearBtn">清空</button>
   </div>
 </div>
 
+<!-- ③ Impression(有才顯示) -->
+<div class="card" id="impCard">
+  <label>③ IMPRESSION（PACS 另一欄位）</label>
+  <textarea id="impression"></textarea>
+  <div class="row" style="margin-top:10px;">
+    <button id="copyImpBtn">📋 複製 Impression</button>
+  </div>
+</div>
+
+<script src="templates.js"></script>
+<script src="matcher.js"></script>
 <script>
-/* ============================================================
-   模板目錄 — 之後可由 AHK 自動解析重生(目前 6 個)
-   ============================================================ */
-const TEMPLATES = [
-{ id:"ct-brain-nc", name:"CT brain without contrast",
-  desc:"non-contrast / plain CT of the brain (head CT).",
-  base:`CT of brain without contrast enhancement shows:
-[Comparison with previous image] No
-[Findings]
-Brain:
-- No intra or extra-axial mass lesions or collections are identified.
-- The ventricles and sulci spaces are within normal limit.
-- No loss of grey-white matter junction is seen.
-- No midline shift is seen.
-Ventricles: Unremarkable.
-Orbit & sinuses:
-- Paranasal sinuses intact.
-- The orbits are unremarkable.
-Bones & soft tissue:
-- No bony fracture or abnormality is seen. Mastoid air cells normal.
-Other remarkable findings: none.` },
-
-{ id:"ct-chest-nc", name:"Chest Lung/Pleura CT without contrast",
-  desc:"chest CT WITHOUT contrast (plain). Lung, pleura, mediastinum.",
-  base:`Chest Lung/Pleura CT without contrast shows:
-
-[Comparison with previous image] No
-
-[Findings]
-- No definite lung lesion is identified.
-- The heart size is within normal limit.
-- No lymphadenopathy in the mediastinum nor bilateral hila.
-
-- No definite organic lesion could be detected in the visible liver, spleen, pancreas, and kidneys.
-- Normal size and shape of the adrenal glands.
-- No lymphadenopathy in the abdomen.
-- No osteolytic nor osteoblastic lesion in the visible bony structures.` },
-
-{ id:"ct-chest-cwc", name:"Chest Lung/Pleura CT with/without contrast",
-  desc:"chest CT WITH contrast (contrast-enhanced). Lung, pleura, mediastinum.",
-  base:`Chest Lung/Pleura CT with/without contrast shows:
-
-[Comparison with previous image] No
-
-[Findings]
-- No definite lung lesion is identified.
-- The heart size is within normal limit.
-- No lymphadenopathy in the mediastinum nor bilateral hila.
-
-- No definite organic lesion could be detected in the visible liver, spleen, pancreas, and kidneys.
-- Normal size and shape of the adrenal glands.
-- No lymphadenopathy in the abdomen.
-- No osteolytic nor osteoblastic lesion in the visible bony structures.` },
-
-{ id:"ct-abdomen-cwc", name:"Abdominal CT with/without contrast",
-  desc:"abdominal CT. Liver, gallbladder, pancreas, spleen, kidneys, bowel, appendix.",
-  base:`Abdominal CT with/without contrast shows:
-
-[Comparison with previous image]No
-
-[Findings]
-- No abnormal hypodense lesion or enhancement of the liver parenchyma is identified.
-- The gallbladder, pancreas, spleen, bilateral adrenal glands and kidneys are unremarkable.
-- No definite abnormality of the bowel loops is appreciated.
-- The appendix reveals normal in size.
-- No definite lymphadenopathy can be identified in abdomen.
-
-- No definite lung lesion can be identified in the visible lung fields.
-- No abnormal soft tissue lesion.
-- The bony structures are unremarkable.` },
-
-{ id:"mri-brain-cwc", name:"Brain MRI with and without IV contrast",
-  desc:"brain MRI with and without IV gadolinium contrast. DWI/ADC, MRA.",
-  base:`Brain MRI with and without IV contrast enhancement shows:
-
-[Pulse sequences]
-(1) Axial turbo spin echo (TSE) T1WI, Sag T1WI
-(2) 3D TOF MR angiography (MRA)
-(3) Gadolinium enhanced axial, cor, sag T1WIs, axial T2WIs and FLAIR T2WIs.
-(4) Diffusion weighted imaging (DWI) with apparent diffusion coefficiency (ADC) map
-(5) [3D SWI with phase images or axial gradient T2* weighted images]
-
-[Comparison with previous image] No
-
-[Image findings]
-- Mild ventricular dilatation, widening of cortical sulci & both Sylvian fissures are noted, in favor of mild atrophic change of brain parenchyma.
-- High-signal foci on T2WIs are noted in the periventricular white matter of bilateral cerebral hemispheres, in favor of small vessel arteriosclerotic brain change.
-
-- No definite space-occupying lesion nor abnormal enhancement.
-- No diffusion restriction lesion is identified in the DWI/ADC map.
-- No evidence of intracranial hemorrhage or midline shift is noted.
-- The cranial vault and skull base appear normal.
-- Clear paranasal sinuses and bilateral mastoid air cells.
-- Preserved retrobulbar fat planes and nasopharynx.
-- Bilateral major intracranial arteries, bilateral proximal ICA, VA are patent on MRA images.` },
-
-{ id:"ct-cap-cwc", name:"CT chest/abdomen/pelvis without/with IV contrast",
-  desc:"CT of chest abdomen pelvis (CAP) without/with IV contrast.",
-  base:`CT scan of the chest, abdomen and pelvis without/with IV contrast enhancement shows:
-[Comparison with previous image] No
-[Findings]
-- No definite lung lesion is identified.
-- The heart size is within normal limit.
-- No lymphadenopathy in the mediastinum nor bilateral hila.
-
-- No abnormal hypodense lesion or enhancement of the liver parenchyma is identified.
-- The gallbladder, pancreas, spleen, bilateral adrenal glands and kidneys are unremarkable.
-- No definite abnormality of the bowel loops is appreciated.
-- The appendix reveals normal in size.
-- No definite lymphadenopathy can be identified in abdomen.
-- The bony structures are unremarkable.` }
-];
-
-function buildSystemPrompt(){
-  const catalog = TEMPLATES.map((t,i)=>
-    `### Template ${i+1} — id:"${t.id}" — ${t.name}\n(${t.desc})\n"""\n${t.base}\n"""`
-  ).join("\n\n");
-  return `You are a radiology report assistant for a non-native English speaker. The dictation may be mis-transcribed; map approximate words to the correct standard radiology term (e.g. hemorrhage, infarct, lymphadenopathy, effusion).
-
-Workflow:
-1. Pick the ONE template below that best matches the dictated study (modality + body region + contrast). If contrast is unstated, prefer the "without contrast" variant; pick the "with"/"with/without" variant only when contrast/enhanced is mentioned.
-2. Start from that template's base text EXACTLY.
-3. The base text is an all-normal study. For each ABNORMAL finding the radiologist dictated:
-   - If a matching normal/negative line exists, REWRITE that line into the positive finding using proper radiology phrasing.
-   - Otherwise ADD a concise finding line in the correct section.
-   - Leave every other normal line unchanged, in the original order.
-4. If a comparison date/prior study is mentioned, fill the [Comparison with previous image] field; otherwise leave it as in the template.
-5. Preserve the template's exact line structure, headings, spacing and bullet style.
-
-Output a JSON object: {"templateId": "<id>", "report": "<the full final report text>"}. No extra commentary.
-
-Templates:
-${catalog}`;
-}
-
 /* ============================ 工具 ============================ */
 const $=id=>document.getElementById(id);
-const KEY_LS="vr_openai_key", MODE_LS="vr_mode";
+const LS={key:"vr_openai_key", mode:"vr_mode", base:"vr_api_base", model:"vr_api_model"};
 const byId=id=>TEMPLATES.find(t=>t.id===id);
+
+/* 啟動:本地有 templates.js → 直接開;沒有(GitHub Pages)→ 顯示登入,雲端載入後由 module script 呼叫 vrBoot */
+function vrBoot(src){
+  $("tplCount").textContent=TEMPLATES.length;
+  $("srcBadge").textContent = src==="cloud" ? "☁️" : "";
+  $("loginCard").style.display="none";
+  applyMode();
+}
+window.vrBoot=vrBoot;
+const HAS_LOCAL = (typeof TEMPLATES!=="undefined");
+if(!HAS_LOCAL){
+  $("loginCard").style.display="block";
+  $("tplCount").textContent="—";
+}
 function setStatus(m,c){ const e=$("status"); e.textContent=m; e.className="status "+(c||""); }
 function setKeyStatus(m,c){ const e=$("keyStatus"); e.textContent=m; e.className="status "+(c||""); }
-function getKey(){ return ($("apiKey").value || localStorage.getItem(KEY_LS) || "").trim(); }
-function showMatched(id){ const t=byId(id); $("matched").innerHTML=t?`<span class="pill">模板：${t.name}</span>`:""; }
+function getKey(){ return ($("apiKey").value || localStorage.getItem(LS.key) || "").trim(); }
+function getBase(){ return ($("apiBase").value || localStorage.getItem(LS.base) || "https://api.openai.com/v1").trim().replace(/\/$/,""); }
+function getModel(){ return ($("apiModel").value || localStorage.getItem(LS.model) || "gpt-5-mini").trim(); }
 
-/* ── 本地關鍵字選模板(免費模式,規則式) ── */
-function matchTemplate(text){
-  const s=" "+text.toLowerCase()+" ";
-  const has=(...ks)=>ks.some(k=>s.includes(k));
-  const mri    = has("mri","mr i"," mr ","magnetic","gadolinium");
-  // 別名 = OS 聽寫對非母語口音常見的誤聽(frame≈brain 等),持續補充
-  const brain  = has("brain","head","cerebr","intracranial","skull","frame","brian","grain","brand","brane","plain brain");
-  const chest  = has("chest","lung","thorax","pleura","mediastin","jest","chess");
-  const abd    = has("abdomen","abdominal","belly","liver","hepatic","abdoman","abdomin","domen");
-  const pelvis = has("pelvis","pelvic","pelvi");
-  const withc  = has("with contrast","with iv","contrast enhanc","enhanced","with and without","with/without","c plus","c+");
-  const woc    = has("without contrast","noncontrast","non contrast","non-contrast","plain","w/o contrast","no contrast");
-  const contrast = withc || (has("contrast") && !woc);
-  if(mri && brain) return byId("mri-brain-cwc");
-  if((chest&&abd) || has("cap","chest abdomen","whole body") || (chest&&pelvis)) return byId("ct-cap-cwc");
-  if(brain) return byId("ct-brain-nc");
-  if(chest) return contrast?byId("ct-chest-cwc"):byId("ct-chest-nc");
-  if(abd)   return byId("ct-abdomen-cwc");
-  return null;
+/* ── 候選 pills + 套用模板 + 歧義偏好記憶(點過一次,下次同樣歧義自動選它)── */
+let currentTpl=null, lastCands=[];
+const prefKey=cands=>cands.slice(0,3).map(c=>c.id).sort().join("|");
+const getPrefs=()=>{ try{return JSON.parse(localStorage.getItem("vr_pref")||"{}");}catch(_){return {};} };
+function savePref(cands,id){ const p=getPrefs(); p[prefKey(cands)]=id; localStorage.setItem("vr_pref",JSON.stringify(p)); }
+function renderCandidates(cands, chosenId){
+  lastCands=cands;
+  $("matched").innerHTML = cands.slice(0,5).map(c=>
+    `<span class="pill ${c.id===chosenId?'on':''}" data-id="${c.id}"><b>${c.id}</b> ${c.name}</span>`).join("");
+}
+$("matched").addEventListener("click",e=>{
+  const p=e.target.closest(".pill"); if(!p) return;
+  savePref(lastCands, p.dataset.id);
+  applyTemplate(byId(p.dataset.id));
+  renderCandidates(lastCands, p.dataset.id);
+  setStatus("完成 ✓(已記住這個選擇)","ok");
+});
+function applyTemplate(tpl){
+  currentTpl=tpl;
+  $("result").value=tpl.findings;
+  $("impression").value=tpl.impression||"";
+  $("impCard").style.display = tpl.impression ? "block" : "none";
 }
 
 /* ============================ 模式 ============================ */
-let mode = localStorage.getItem(MODE_LS) || "free";
+let mode = localStorage.getItem(LS.mode) || "free";
 function applyMode(){
   [...$("modeSeg").children].forEach(b=>b.classList.toggle("on", b.dataset.mode===mode));
   if(mode==="free"){
     $("goBtn").textContent="🔍 選模板（免費）";
-    setStatus("免費模式：本地關鍵字選模板，顯示原文（不需 key）");
+    setStatus("免費模式:本地選模板,顯示原文(不需 key)");
   }else{
     $("goBtn").textContent="🧠 產生報告（自動填寫）";
     if(!getKey()){ setStatus("智慧模式需先到 ⚙️ 填 API key","err"); $("cfgCard").open=true; }
-    else setStatus("智慧模式：gpt-4o-mini 選模板 + 翻陽性填寫");
+    else setStatus(`智慧模式:${getModel()} 依口述填寫(選模板仍在本地做)`);
   }
 }
 $("modeSeg").addEventListener("click",e=>{
   const b=e.target.closest("button[data-mode]"); if(!b) return;
-  mode=b.dataset.mode; localStorage.setItem(MODE_LS,mode); applyMode();
+  mode=b.dataset.mode; localStorage.setItem(LS.mode,mode); applyMode();
 });
 
-/* ── API key ── */
-$("apiKey").value = localStorage.getItem(KEY_LS) || "";
-$("saveKey").onclick=()=>{ localStorage.setItem(KEY_LS,$("apiKey").value.trim()); setKeyStatus("已儲存 ✓","ok"); applyMode(); };
+/* ── 設定 ── */
+$("apiKey").value = localStorage.getItem(LS.key) || "";
+$("apiBase").value = localStorage.getItem(LS.base) || "";
+$("apiModel").value = localStorage.getItem(LS.model) || "";
+$("saveKey").onclick=()=>{
+  localStorage.setItem(LS.key,$("apiKey").value.trim());
+  localStorage.setItem(LS.base,$("apiBase").value.trim());
+  localStorage.setItem(LS.model,$("apiModel").value.trim());
+  setKeyStatus("已儲存 ✓","ok"); applyMode();
+};
 
 /* ============================ 產生報告 ============================ */
 $("goBtn").onclick=async()=>{
-  const t=$("dictation").value.trim();
-  if(!t){ setStatus("請先在①口述（或打字）","err"); $("dictation").focus(); return; }
-  $("matched").innerHTML="";
-  if(mode==="free"){
-    const tpl=matchTemplate(t);
-    if(tpl){ $("result").value=tpl.base; showMatched(tpl.id);
-      setStatus("完成 ✓ 免費模式只顯示模板原文；要自動翻陽性請用『智慧』","ok"); }
-    else setStatus("聽錯了選不到：「"+t+"」← 口音誤聽請改用『🧠 智慧』模式，它能靠上下文修正","err");
+  if(typeof TEMPLATES==="undefined"){ setStatus("模板尚未載入——請先登入","err"); return; }
+  const text=$("dictation").value.trim();
+  if(!text){ setStatus("請先在①口述（或打字）","err"); $("dictation").focus(); return; }
+  const {auto,candidates}=vrPick(text);
+  if(!candidates.length){ setStatus("選不到模板:「"+text+"」← 換個講法或打縮寫","err"); $("matched").innerHTML=""; return; }
+  let chosen = auto ? byId(auto.id) : null;
+  if(!chosen){                       // 歧義:先看有沒有記住的偏好
+    const pref=getPrefs()[prefKey(candidates)];
+    if(pref && candidates.slice(0,5).some(c=>c.id===pref)) chosen=byId(pref);
+  }
+  renderCandidates(candidates, chosen?chosen.id:null);
+  if(!chosen){
+    setStatus("有多個可能,點上面的候選模板選一個 ↑","err");
     return;
   }
-  // 智慧模式
+  if(mode==="free"){
+    applyTemplate(chosen);
+    renderCandidates(candidates, chosen.id);
+    setStatus("完成 ✓ 免費模式顯示模板原文;要自動翻陽性請用『智慧』","ok");
+    return;
+  }
+  // 智慧模式:單模板送 LLM 填寫
   if(!getKey()){ setStatus("請先填 API key","err"); $("cfgCard").open=true; return; }
   try{
-    setStatus("產生中（gpt-4o-mini）…");
-    const {templateId,report}=await fillTemplate(t);
-    $("result").value=report; showMatched(templateId); setStatus("完成 ✓","ok");
-  }catch(e){ setStatus("錯誤："+e.message,"err"); }
+    setStatus(`產生中(${getModel()})…`);
+    const {report,impression}=await fillTemplate(chosen, text);
+    currentTpl=chosen;
+    $("result").value=report;
+    $("impression").value=impression||chosen.impression||"";
+    $("impCard").style.display = ($("impression").value ? "block" : "none");
+    renderCandidates(candidates, chosen.id);
+    setStatus("完成 ✓","ok");
+  }catch(e){ setStatus("錯誤:"+e.message,"err"); }
 };
 
-async function fillTemplate(transcript){
-  const r=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",headers:{Authorization:"Bearer "+getKey(),"Content-Type":"application/json"},
-    body:JSON.stringify({model:"gpt-4o-mini",temperature:0.2,response_format:{type:"json_object"},
-      messages:[{role:"system",content:buildSystemPrompt()},{role:"user",content:"Dictation: "+transcript}]})});
-  if(!r.ok) throw new Error("Chat "+r.status+" "+(await r.text()).slice(0,140));
-  const txt=(await r.json()).choices[0].message.content;
-  let o; try{ o=JSON.parse(txt); }catch(_){ o={templateId:"",report:txt}; } return o;
+/* 智慧模式 prompt:只給選中的一個模板(兩段式的第二段;A3 將改行號 patch 制) */
+function buildSystemPrompt(tpl){
+  return `You are a radiology report assistant for a non-native English speaker. The dictation may be mis-transcribed; map approximate words to the correct standard radiology term (e.g. hemorrhage, infarct, lymphadenopathy, effusion).
+
+You are given ONE report template (an all-normal study) selected for this dictation.
+Rules:
+1. Start from the template text EXACTLY.
+2. For each ABNORMAL finding dictated: if a matching normal/negative line exists, REWRITE that line into the positive finding with proper radiology phrasing; otherwise ADD a concise line in the correct section. Leave every other line unchanged, in original order.
+3. Lines containing alternatives separated by " / " : choose the ONE alternative that matches the dictation and delete the rest (keep the line's prefix/bullet).
+4. Blanks like "__" or "(  )": fill from the dictation if stated, otherwise keep as-is.
+5. If a comparison/prior study is mentioned, fill the [Comparison with previous image] field; otherwise leave it.
+6. Preserve exact line structure, headings, spacing and bullet style.
+7. IMPRESSION section: update it to be consistent with the findings you changed (same style, concise).
+
+Output a JSON object: {"report":"<final findings text>","impression":"<final impression text, empty string if template has none>"}. No extra commentary.
+
+[TEMPLATE: ${tpl.name}]
+FINDINGS:
+"""
+${tpl.findings}
+"""
+IMPRESSION:
+"""
+${tpl.impression||""}
+"""`;
 }
 
-/* 複製 / 清空 */
-$("copyBtn").onclick=async()=>{ const v=$("result").value;
-  try{ await navigator.clipboard.writeText(v); setStatus("已複製 ✓","ok"); }
-  catch(_){ $("result").select(); document.execCommand("copy"); setStatus("已複製 ✓","ok"); } };
-$("clearBtn").onclick=()=>{ $("dictation").value=""; $("result").value=""; $("matched").innerHTML=""; applyMode(); };
+async function fillTemplate(tpl, transcript){
+  const body={model:getModel(),
+    response_format:{type:"json_object"},
+    messages:[{role:"system",content:buildSystemPrompt(tpl)},{role:"user",content:"Dictation: "+transcript}]};
+  // gpt-5 系列:降推理延遲;其他模型忽略此參數會報錯就拿掉
+  if(/^gpt-5/.test(getModel())) body.reasoning_effort="minimal"; else body.temperature=0.2;
+  const r=await fetch(getBase()+"/chat/completions",{
+    method:"POST",headers:{Authorization:"Bearer "+getKey(),"Content-Type":"application/json"},
+    body:JSON.stringify(body)});
+  if(!r.ok) throw new Error("API "+r.status+" "+(await r.text()).slice(0,140));
+  const txt=(await r.json()).choices[0].message.content;
+  let o; try{ o=JSON.parse(txt); }catch(_){ o={report:txt,impression:""}; } return o;
+}
 
-applyMode();
+/* 複製 / 清空(execCommand fallback:iOS Safari/PWA 的 clipboard API 不穩,v2 遺產) */
+async function copyText(v, ta){ try{ await navigator.clipboard.writeText(v); return true; }
+  catch(_){ if(ta){ ta.select(); try{ return document.execCommand("copy"); }catch(e){} } return false; } }
+$("copyBtn").onclick=async()=>{ const ok=await copyText($("result").value,$("result")); setStatus(ok?"Findings 已複製 ✓":"複製失敗",ok?"ok":"err"); };
+$("copyImpBtn").onclick=async()=>{ const ok=await copyText($("impression").value,$("impression")); setStatus(ok?"Impression 已複製 ✓":"複製失敗",ok?"ok":"err"); };
+$("clearBtn").onclick=()=>{ $("dictation").value=""; $("result").value=""; $("impression").value="";
+  $("impCard").style.display="none"; $("matched").innerHTML=""; currentTpl=null; applyMode(); };
+
+if(HAS_LOCAL) vrBoot("local"); else applyMode();
+</script>
+
+<!-- 雲端模式:Firebase Auth(純 popup,見 firebase-auth-ios playbook)+ RTDB 讀模板 -->
+<script type="module">
+import { app, configReady } from "./firebase-config.js";
+const $=id=>document.getElementById(id);
+const say=(m,c)=>{ const e=$("loginStatus"); e.textContent=m; e.className="status "+(c||""); };
+
+if(typeof TEMPLATES==="undefined"){          // 只有雲端模式才啟動 Firebase
+  if(!configReady){
+    say("firebase-config.js 還沒填 Firebase 專案設定","err");
+  }else{
+    const { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } =
+      await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const { getDatabase, ref, get } =
+      await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+    const auth=getAuth(app);
+    $("loginBtn").addEventListener("click", async()=>{
+      try{ await signInWithPopup(auth, new GoogleAuthProvider()); }   // 純 popup,別加料
+      catch(err){ say("登入失敗:"+err.code,"err"); }
+    });
+    onAuthStateChanged(auth, async user=>{
+      if(!user){ say("尚未登入"); return; }
+      say("載入模板中……");
+      try{
+        const snap=await get(ref(getDatabase(app),"voiceReport/templates"));
+        if(!snap.exists()) throw new Error("雲端還沒有模板(先用 admin.html 上傳)");
+        window.TEMPLATES=snap.val();
+        window.vrBoot("cloud");
+      }catch(e){ say("讀取失敗:"+(e.message||e.code)+"(帳號沒權限?rules 只放行授權 email)","err"); }
+    });
+  }
+}
 </script>
 </body>
 </html>

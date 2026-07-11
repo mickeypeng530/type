@@ -5,6 +5,17 @@
 *.pem
 cookies*.json
 
+# 模板庫 = 私有資產,不進公開 repo(存 Firebase RTDB,rules 鎖 email;本地由 parse_ahk.py 重生)
+templates.js
+phrases.js
+tools/library.json
+
+# Firebase Admin 金鑰 = 全專案管理權,絕不進 repo
+service-account*.json
+tools/review.html
+tools/test_audio.wav
+__pycache__/
+
 # OS / editor
 .DS_Store
 Thumbs.db

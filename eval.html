@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceReport eval — 選模板命中率</title>
+<style>
+ body{font-family:-apple-system,"Segoe UI","Noto Sans TC",sans-serif;background:#0f1419;color:#e6edf3;margin:0;padding:16px;max-width:980px;margin:0 auto;}
+ h1{font-size:17px;} .sum{font-size:15px;margin:12px 0;padding:12px;background:#1a212b;border:1px solid #2e3a4a;border-radius:10px;}
+ table{border-collapse:collapse;width:100%;font-size:13px;}
+ td,th{border:1px solid #2e3a4a;padding:6px 8px;text-align:left;vertical-align:top;}
+ th{color:#8b97a7;font-weight:600;}
+ .ok{color:#3fd17a;} .t3{color:#e3b341;} .bad{color:#ff4d5e;}
+ code{font-family:ui-monospace,Consolas,monospace;color:#4da3ff;}
+ .muted{color:#8b97a7;}
+</style>
+</head>
+<body>
+<h1>🧪 VoiceReport eval — 免費模式選模板命中率</h1>
+<div class="muted">測試集 = <b>[REAL] 真實口述</b>(iOS 聽寫原文,含對稿批次)+ 合成案例。命中判定:同名模板互相通用;資訊全毀型(如 "Trust"、"; X-ray")本來就救不了,靠候選 pills/縮寫兜底。</div>
+<div class="sum" id="sum">running…</div>
+<table id="tbl"><tr><th>#</th><th>口述</th><th>期望</th><th>Top-1</th><th>判定</th><th>候選(除錯用)</th></tr></table>
+
+<script src="templates.js"></script>
+<script src="matcher.js"></script>
+<script>
+/* 測試集:expect 可列多個可接受 id(同名模板自動視為等價)
+   real:true = 使用者手機聽寫的真實口述(原文含誤聽,勿修字!) */
+const CASES=[
+ /* ── 對稿批次 2026-07-11(A組 1-30 照稿唸)── */
+ {say:"City of Perng with our", expect:["ct0b"], real:true, note:"#1 CT brain 無顯影;brain→Perng(姓氏!), without→with our"},
+ {say:"City of Brentwood and", expect:["ct2b"], real:true, note:"#2 brain→Brentwood,尾巴被吃"},
+ {say:"City of the day of the", expect:["ct3b"], real:true, note:"#3 CTA brain,全毀型"},
+ {say:"Trust city", expect:["ct0c"], real:true, note:"#4 chest→Trust,without contrast 沒錄到"},
+ {say:"Trust", expect:["ct1c"], real:true, note:"#5 全毀型"},
+ {say:"Trust city of trans abdominal pelvis", expect:["ct2cap","ct1cap","ct2cap1","ct0cap","ct0cap1"], real:true, note:"#6 CAP;contrast 資訊被聽寫吃掉,無顯影版也算合理答案"},
+ {say:"Abdominal city with whistle con contra", expect:["ct2ap"], real:true, note:"#7 with and without→with whistle"},
+ {say:"Neuro", expect:["ctu/"], real:true, note:"#9? urography→Neuro(對位不確定,#8 liver 疑似沒錄到)"},
+ {say:"City of cervical spine with our contra", expect:["ct0cs","ctcs3"], real:true, note:"#10"},
+ {say:"Chest x-ray", expect:["xc/","xcpa1"], real:true, note:"#11 完美"},
+ {say:"PA and view", expect:["xcapl"], real:true, note:"#12 chest x-ray/lateral 被吃"},
+ {say:"KUBNWU", expect:["ivp/"], real:true, note:"#14 KUB and IVU 黏成一團(#13 KUB 沒錄到)"},
+ {say:"Right knee x-ray", expect:["xrk"], real:true, note:"#15 完美"},
+ {say:"Death and x-ray", expect:["xlan"], real:true, note:"#16 left ankle→Death and"},
+ {say:"Both shoulder x-ray", expect:["xbsho"], real:true, note:"#17"},
+ {say:"; X-ray", expect:["xcs"], real:true, note:"#18 cervical spine→分號,全毀型"},
+ {say:"L spy x-ray", expect:["xls"], real:true, note:"#19 L spine→L spy"},
+ {say:"X-ray", expect:["xs"], real:true, note:"#20 skull 被吃,全毀型"},
+ {say:"Prince city without contra", expect:["mr0br","mr0bsz","mr0bst","mr0buf","mr0biac"], real:true, note:"#21 Brain MRI→Prince city,modality 資訊全失"},
+ {say:"Prem MRI with without contrast", expect:["mr2br","mr2bst","mr2bp"], real:true, note:"#22 brain→Prem"},
+ {say:"MRI of our spine", expect:["mr0ls","mr0ls1"], real:true, note:"#23 lumbosacral→our"},
+ {say:"Am I Spain?", expect:["mr0cs"], real:true, note:"#24 MRI spine→Am I Spain,cervical 被吃"},
+ {say:"Am I threshold?", expect:["mrsho","mrsho3"], real:true, note:"#25 right shoulder→threshold"},
+ {say:"Am I of the knee?", expect:["mrkn"], real:true, note:"#26"},
+ {say:"Is", expect:["eso/","tbe"], real:true, note:"#27 esophagography→Is,全毀型"},
+ {say:"I’m a G.I.", expect:["ugi1/"], real:true, note:"#28 Upper GI"},
+ {say:"Small series", expect:["sbs"], real:true, note:"#29 bowel 被吃"},
+ {say:"Avoiding system", expect:["vcug"], real:true, note:"#30 VCUG"},
+ /* ── 第一批 2026-07-11 ── */
+ {say:"City of brain without contrast", expect:["ct0b"], real:true, note:"誤聽 City≈CT"},
+ {say:"Chest x-ray, no active down leg", expect:["xc/","xcpa1"], real:true, note:"誤聽 down leg≈lung lesion"},
+ {say:"MRI of Nama spine L4, five spinal canal analysis mouth stenosis 05 S1 neural for diagnosis",
+  expect:["mr0ls","mr0ls1"], real:true, note:"誤聽 Nama≈lumbar;L4-5→L4, five"},
+ {say:"CT noncontrast brain, no bleeding", expect:["ct0b"]},
+ {say:"CT brain without contrast, acute hemorrhage at right basal ganglia", expect:["ct0b"]},
+ {say:"CT brain with and without contrast", expect:["ct2b"]},
+ {say:"CTA of the brain", expect:["ct3b"]},
+ {say:"CT of the frame without contrast", expect:["ct0b"], note:"誤聽 frame≈brain"},
+ {say:"chest CT without contrast", expect:["ct0c"]},
+ {say:"chest CT with contrast, no lymphadenopathy", expect:["ct1c","ct2c"]},
+ {say:"chest CT with and without contrast", expect:["ct2c"]},
+ {say:"CT chest abdomen pelvis with contrast", expect:["ct1cap","ct2cap","ct2cap1"]},
+ {say:"CT CAP with contrast", expect:["ct1cap","ct2cap","ct2cap1"], note:"v2 遺產別名"},
+ {say:"whole body CT with and without contrast", expect:["ct2cap","ct2cap1","ct2ncap"], note:"v2 遺產別名"},
+ {say:"CT chest abdomen pelvis without contrast", expect:["ct0cap","ct0ap3"]},
+ {say:"abdominal CT with and without contrast, appendicitis", expect:["ct2ap"]},
+ {say:"abdominal CT without contrast", expect:["ct0ap"]},
+ {say:"liver triphase CT", expect:["ct3l","ct3l2"]},
+ {say:"pancreas triphase CT", expect:["ct3p"]},
+ {say:"CT urography", expect:["ctu/"]},
+ {say:"CT cervical spine without contrast", expect:["ct0cs","ctcs3"]},
+ {say:"CT lumbar spine", expect:["ct0ls"]},
+ {say:"paranasal sinus CT", expect:["ct0s3"]},
+ {say:"chest x-ray no active lung lesion", expect:["xc/","xcpa1"]},
+ {say:"CXR PA and lateral view", expect:["xcapl"]},
+ {say:"jest x-ray", expect:["xc/","xcpa1"], note:"誤聽 jest≈chest"},
+ {say:"KUB", expect:["xk1/","xk/"]},
+ {say:"KUB and IVU", expect:["ivp/"]},
+ {say:"abdominal standing view", expect:["xabd"]},
+ {say:"right knee x-ray", expect:["xrk"]},
+ {say:"left nee x-ray", expect:["xlk"], note:"誤聽 nee≈knee"},
+ {say:"both knees x-ray", expect:["xbk"]},
+ {say:"right shoulder x-ray", expect:["xrsho"]},
+ {say:"left ankle x-ray", expect:["xlan"]},
+ {say:"right hand x-ray", expect:["xrh"]},
+ {say:"cervical spine x-ray", expect:["xcs"]},
+ {say:"lumbar spine x-ray", expect:["xls"]},
+ {say:"whole spine x-ray", expect:["xws"]},
+ {say:"skull x-ray", expect:["xs"]},
+ {say:"brain MRI without contrast", expect:["mr0br","mr0bsz","mr0bst","mr0buf","mr0biac"]},
+ {say:"brain MRI with and without contrast", expect:["mr2br","mr2bst","mr2bp"]},
+ {say:"MRI lumbar spine", expect:["mr0ls"]},
+ {say:"MRI cervical spine", expect:["mr0cs"]},
+ {say:"MRI right shoulder", expect:["mrsho"]},
+ {say:"MRI left knee", expect:["mrkn"]},
+ {say:"MRI of the hip", expect:["mrh"]},
+ {say:"MRI female pelvis with contrast", expect:["mrfp"]},
+ {say:"MRI of the male pelvis", expect:["mrmp","mrpr2"]},
+ {say:"esophagography", expect:["eso/","tbe"]},
+ {say:"upper GI series", expect:["ugi1/"]},
+ {say:"small bowel series", expect:["sbs"]},
+ {say:"voiding urethrocystography", expect:["vcug"]},
+ {say:"cystography", expect:["cysto"]},
+];
+
+const byId=id=>TEMPLATES.find(t=>t.id===id);
+const nameOf=id=>{const t=byId(id); return t?t.name:"?";};
+function hit(got, expect){         // 同名模板等價
+  const names=new Set(expect.map(nameOf));
+  return names.has(got.name)||expect.includes(got.id);
+}
+let n1=0,n3=0;
+const rows=[];
+CASES.forEach((c,i)=>{
+  const ranked=vrMatch(c.say,8);
+  const top=ranked[0];
+  const in1=top&&hit(top,c.expect);
+  const in3=ranked.slice(0,3).some(r=>hit(r,c.expect));
+  if(in1)n1++; if(in3)n3++;
+  const cls=in1?"ok":(in3?"t3":"bad");
+  const mark=in1?"✅ top1":(in3?"🟡 top3":"❌ miss");
+  rows.push(`<tr><td>${i+1}</td><td>${c.real?'<b style="color:#3fd17a">[REAL]</b> ':''}${c.say}${c.note?`<div class="muted">${c.note}</div>`:""}</td>
+   <td><code>${c.expect.join(", ")}</code></td>
+   <td>${top?`<code>${top.id}</code> ${top.name}<div class="muted">score ${top.score.toFixed(2)}</div>`:"—"}</td>
+   <td class="${cls}">${mark}</td>
+   <td class="muted">${ranked.slice(0,4).map(r=>`${r.id}(${r.score.toFixed(1)})`).join(" · ")}</td></tr>`);
+});
+document.getElementById("tbl").insertAdjacentHTML("beforeend",rows.join(""));
+const N=CASES.length;
+document.getElementById("sum").innerHTML=
+ `Top-1:<b class="${n1/N>=0.8?'ok':'bad'}"> ${n1}/${N} (${(n1/N*100).toFixed(0)}%)</b> — 門檻 80% ·
+  Top-3:<b class="${n3/N>=0.95?'ok':'bad'}"> ${n3}/${N} (${(n3/N*100).toFixed(0)}%)</b> — 門檻 95%`;
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🎤 Whisper 測試台</title>
+<style>
+  :root{--bg:#0f1419;--panel:#1a212b;--panel2:#222b38;--line:#2e3a4a;
+    --text:#e6edf3;--muted:#8b97a7;--accent:#4da3ff;--ok:#3fd17a;--err:#ff4d5e;--rec:#ff4d5e;}
+  *{box-sizing:border-box;}
+  body{margin:0 auto;max-width:720px;padding:16px 14px 60px;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI","Noto Sans TC",sans-serif;}
+  h1{font-size:18px;font-weight:600;} h1 small{color:var(--muted);font-weight:400;font-size:13px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;}
+  #recBtn{width:100%;padding:26px;font-size:20px;font-weight:700;border:none;border-radius:14px;
+    background:var(--accent);color:#fff;cursor:pointer;transition:background .15s;}
+  #recBtn.rec{background:var(--rec);animation:pulse 1.2s infinite;}
+  @keyframes pulse{50%{opacity:.75;}}
+  .status{font-size:13px;color:var(--muted);min-height:20px;margin-top:10px;}
+  .status.err{color:var(--err);} .status.ok{color:var(--ok);}
+  .item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;}
+  .item .meta{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .item .txt{font-size:15px;line-height:1.5;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;}
+  .item button{margin-top:8px;padding:6px 12px;font-size:13px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);border-radius:8px;cursor:pointer;}
+  .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:8px;}
+</style>
+</head>
+<body>
+<h1>🎤 Whisper 測試台 <small>本地轉錄,語音不出電腦</small></h1>
+
+<div class="card">
+  <div class="row">
+    <label style="font-size:13px;color:var(--muted)">模型</label>
+    <select id="model">
+      <option value="small" selected>small(快,~3× 即時)</option>
+      <option value="large-v3-turbo">large-v3-turbo(準,~1.2× 即時)</option>
+    </select>
+    <label style="font-size:13px;color:var(--muted)">語言</label>
+    <select id="lang">
+      <option value="en" selected>英文</option>
+      <option value="auto">自動偵測</option>
+    </select>
+  </div>
+  <button id="recBtn" style="margin-top:12px;">🎤 按一下開始錄音</button>
+  <div class="status" id="status">連上耳機麥克風後,按上面的按鈕開講;再按一次結束並轉錄。</div>
+  <div class="hint">建議測句:平常打報告的講法,含椎節/側別/大小(L4-5、right、3 cm)。
+    同一句可以 small 和 turbo 各錄一次比品質。</div>
+</div>
+
+<div id="results"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let mediaRecorder=null, chunks=[], recording=false, t0=0;
+
+async function toggleRec(){
+  if(recording){ mediaRecorder.stop(); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}});
+    chunks=[];
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>chunks.push(e.data);
+    mediaRecorder.onstop=async()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      recording=false;
+      $("recBtn").classList.remove("rec");
+      $("recBtn").textContent="🎤 按一下開始錄音";
+      const secs=((Date.now()-t0)/1000).toFixed(1);
+      await transcribe(new Blob(chunks,{type:mediaRecorder.mimeType}), secs);
+    };
+    mediaRecorder.start();
+    recording=true; t0=Date.now();
+    $("recBtn").classList.add("rec");
+    $("recBtn").textContent="⏹ 錄音中……再按一次結束";
+    $("status").textContent="錄音中——開講!";
+    $("status").className="status";
+  }catch(e){
+    $("status").textContent="麥克風開不起來:"+e.message+"(瀏覽器要允許麥克風權限)";
+    $("status").className="status err";
+  }
+}
+$("recBtn").onclick=toggleRec;
+
+async function transcribe(blob, recSecs){
+  const model=$("model").value, lang=$("lang").value;
+  $("status").textContent=`轉錄中(${model})……第一次用 turbo 要多等幾秒載入模型`;
+  try{
+    const r=await fetch(`/transcribe?model=${model}&lang=${lang}`,{
+      method:"POST", headers:{"Content-Type":blob.type||"audio/webm"}, body:blob});
+    const o=await r.json();
+    if(o.error) throw new Error(o.error);
+    addResult(o, recSecs);
+    $("status").textContent="完成 ✓"; $("status").className="status ok";
+  }catch(e){
+    $("status").textContent="轉錄失敗:"+e.message; $("status").className="status err";
+  }
+}
+
+function addResult(o, recSecs){
+  const div=document.createElement("div");
+  div.className="item";
+  const when=new Date().toLocaleTimeString();
+  div.innerHTML=`<div class="meta">${when} · ${o.model} · 音檔 ${o.audioSec}s · 轉錄 ${o.transcribeSec}s (x${(o.audioSec/o.transcribeSec).toFixed(1)} 即時)</div>
+    <div class="txt"></div><button>📋 複製</button>`;
+  div.querySelector(".txt").textContent=o.text||"(空白——沒收到聲音?)";
+  div.querySelector("button").onclick=async()=>{ await navigator.clipboard.writeText(o.text); };
+  $("results").prepend(div);
+}
+</script>
+</body>
+</html>

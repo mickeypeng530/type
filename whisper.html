@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🎤 Whisper 瀏覽器版 — 零安裝本地轉錄</title>
+<style>
+  :root{--bg:#0f1419;--panel:#1a212b;--panel2:#222b38;--line:#2e3a4a;
+    --text:#e6edf3;--muted:#8b97a7;--accent:#4da3ff;--ok:#3fd17a;--err:#ff4d5e;--rec:#ff4d5e;}
+  *{box-sizing:border-box;}
+  body{margin:0 auto;max-width:720px;padding:16px 14px 60px;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI","Noto Sans TC",sans-serif;}
+  h1{font-size:18px;font-weight:600;} h1 small{color:var(--muted);font-weight:400;font-size:13px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  select,button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:14px;}
+  button{cursor:pointer;}
+  #recBtn{width:100%;padding:26px;font-size:20px;font-weight:700;border:none;border-radius:14px;
+    background:var(--accent);color:#fff;transition:background .15s;}
+  #recBtn:disabled{opacity:.45;cursor:not-allowed;}
+  #recBtn.rec{background:var(--rec);animation:pulse 1.2s infinite;}
+  @keyframes pulse{50%{opacity:.75;}}
+  .status{font-size:13px;color:var(--muted);min-height:20px;margin-top:10px;}
+  .status.err{color:var(--err);} .status.ok{color:var(--ok);}
+  .bar{height:6px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:8px;display:none;}
+  .bar i{display:block;height:100%;width:0%;background:var(--accent);transition:width .2s;}
+  .item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;}
+  .item .meta{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .item .txt{font-size:15px;line-height:1.5;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;}
+  .item button{margin-top:8px;padding:6px 12px;font-size:13px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);border-radius:8px;}
+  .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:8px;}
+</style>
+</head>
+<body>
+<h1>🎤 Whisper 瀏覽器版 <small>零安裝 · 轉錄在你電腦裡跑 · 引擎:<span id="dev">偵測中…</span></small></h1>
+
+<div class="card">
+  <div class="row">
+    <label style="font-size:13px;color:var(--muted)">模型</label>
+    <select id="model">
+      <option value="onnx-community/whisper-base" selected>base(~80MB,最快)</option>
+      <option value="onnx-community/whisper-small">small(~250MB,較準)</option>
+    </select>
+    <label style="font-size:13px;color:var(--muted)">語言</label>
+    <select id="lang">
+      <option value="english" selected>英文</option>
+      <option value="auto">自動偵測</option>
+    </select>
+    <button class="ghost" id="testBtn">🧪 用測試音檔跑一次</button>
+  </div>
+  <div class="bar" id="bar"><i id="barFill"></i></div>
+  <button id="recBtn" style="margin-top:12px;">🎤 按一下開始錄音</button>
+  <div class="status" id="status">第一次使用會下載模型(之後有快取);按 🧪 可先不用麥克風驗證整條管線。</div>
+  <div class="hint">模型第一次載入需要網路;轉錄本身完全在本機。換模型後第一句會重新載入。</div>
+</div>
+
+<div id="results"></div>
+
+<script type="module">
+import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+
+const $=id=>document.getElementById(id);
+const DEVICE = navigator.gpu ? "webgpu" : "wasm";
+$("dev").textContent = DEVICE==="webgpu" ? "WebGPU(有 GPU 加速)" : "WASM(純 CPU,較慢)";
+
+let asr=null, asrKey="";
+async function getASR(){
+  const model=$("model").value;
+  const key=model+"|"+DEVICE;
+  if(asr && asrKey===key) return asr;
+  setStatus(`載入模型 ${model.split("/")[1]}(第一次要下載)…`);
+  $("bar").style.display="block";
+  asr = await pipeline("automatic-speech-recognition", model, {
+    device: DEVICE,
+    dtype: DEVICE==="webgpu" ? {encoder_model:"fp32", decoder_model_merged:"q4"} : "q8",
+    progress_callback: p=>{
+      if(p.status==="progress" && p.total)
+        $("barFill").style.width=Math.round(p.loaded/p.total*100)+"%";
+    },
+  });
+  $("bar").style.display="none";
+  asrKey=key;
+  return asr;
+}
+
+function setStatus(m,c){ const e=$("status"); e.textContent=m; e.className="status "+(c||""); }
+
+async function blobToPCM(blob){
+  const buf=await blob.arrayBuffer();
+  const ctx=new AudioContext({sampleRate:16000});
+  const audio=await ctx.decodeAudioData(buf);
+  const pcm=audio.getChannelData(0);
+  ctx.close();
+  return {pcm, secs:audio.duration};
+}
+
+async function transcribeBlob(blob, label){
+  const {pcm, secs}=await blobToPCM(blob);
+  const a=await getASR();
+  setStatus("轉錄中……");
+  const t0=performance.now();
+  const lang=$("lang").value;
+  const out=await a(pcm, {
+    language: lang==="auto" ? undefined : lang,
+    task:"transcribe", chunk_length_s:30,
+  });
+  const dt=(performance.now()-t0)/1000;
+  addResult(out.text.trim(), secs, dt, $("model").value.split("/")[1]+" · "+DEVICE+(label?" · "+label:""));
+  setStatus("完成 ✓","ok");
+}
+
+function addResult(text, audioSec, dt, meta){
+  const div=document.createElement("div");
+  div.className="item";
+  div.innerHTML=`<div class="meta">${new Date().toLocaleTimeString()} · ${meta} · 音檔 ${audioSec.toFixed(1)}s · 轉錄 ${dt.toFixed(1)}s (x${(audioSec/dt).toFixed(1)} 即時)</div>
+    <div class="txt"></div><button>📋 複製</button>`;
+  div.querySelector(".txt").textContent=text||"(空白——沒收到聲音?)";
+  div.querySelector("button").onclick=()=>navigator.clipboard.writeText(text);
+  $("results").prepend(div);
+}
+
+/* ── 錄音 ── */
+let mediaRecorder=null, chunks=[], recording=false;
+$("recBtn").onclick=async()=>{
+  if(recording){ mediaRecorder.stop(); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}});
+    chunks=[];
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=e=>chunks.push(e.data);
+    mediaRecorder.onstop=async()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      recording=false;
+      $("recBtn").classList.remove("rec");
+      $("recBtn").textContent="🎤 按一下開始錄音";
+      try{ await transcribeBlob(new Blob(chunks,{type:mediaRecorder.mimeType})); }
+      catch(e){ setStatus("轉錄失敗:"+e.message,"err"); }
+    };
+    mediaRecorder.start();
+    recording=true;
+    $("recBtn").classList.add("rec");
+    $("recBtn").textContent="⏹ 錄音中……再按一次結束";
+    setStatus("錄音中——開講!");
+  }catch(e){ setStatus("麥克風開不起來:"+e.message,"err"); }
+};
+
+/* ── 測試音檔(不用麥克風即可驗證管線)── */
+$("testBtn").onclick=async()=>{
+  try{
+    const r=await fetch("tools/test_audio.wav");
+    if(!r.ok) throw new Error("拿不到測試音檔(要從 http:// 開這頁,不能 file://)");
+    await transcribeBlob(await r.blob(), "測試音檔");
+  }catch(e){ setStatus("測試失敗:"+e.message,"err"); }
+};
+</script>
+</body>
+</html>

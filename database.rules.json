@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read":  "$uid === auth.uid && auth.token.email === 'deer530530@gmail.com'",
+        ".write": "$uid === auth.uid && auth.token.email === 'deer530530@gmail.com'"
+      }
+    },
+    "paperRadar": {
+      ".read": "auth.token.email === 'deer530530@gmail.com'",
+      "userState": {
+        "$uid": {
+          ".write": "$uid === auth.uid && auth.token.email === 'deer530530@gmail.com'"
+        }
+      }
+    },
+    "voiceReport": {
+      ".read":  "auth != null && auth.token.email_verified == true && auth.token.email === 'deer530530@gmail.com'",
+      ".write": "auth != null && auth.token.email_verified == true && auth.token.email === 'deer530530@gmail.com'"
+    }
+  }
+}
