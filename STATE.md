@@ -28,6 +28,7 @@
   - 坑：huggingface_hub 舊版在 Windows 無開發者模式時 symlink 下載會炸（WinError 1314）→ 升級 huggingface_hub 即修。
 - ⏳ **C 手機中繼（選配）**：Firebase RTDB，只在 B 走不通時才做。
 - ✅ **部署（C 方案,2026-07-12 v3 已上線 commit 1bbd1a5）**：模板庫上鎖——templates.js/phrases.js 不進 repo，線上版 Google 登入(純 popup)→ RTDB `/voiceReport/*` 載模板，rules 鎖 `deer530530@gmail.com`(規則已含既有 users/paperRadar,共用 income-41a40)。雲端現況 236/1101(psh、pshid 已清)。模板同步一條命令 `python tools/upload_rtdb.py`(admin key 複製自 Worknum/scripts,gitignored);admin.html 為瀏覽器備援。本地有 templates.js 自動走本地模式。
+- ✅ **snippets.html（2026-07-12）**：純網頁版可複製 hotkey——公用電腦不能裝 AHK 時的替代。打縮寫(nln/ct2b)→ Enter 複製第一筆,或關鍵字搜尋 → 點按複製;涵蓋全部 236 模板 + 1101 短句。全部/短句/模板 篩選;模板另出 Impression 鈕。與 index.html 共用 firebase-config(雲端登入載 templates+phrases)、templates.js/phrases.js(本地)。**獨立頁,不動 index.html 設計**;彼此以 header 連結互通。
 - 決策脈絡見 [DECISION_LOG.md](DECISION_LOG.md)。
 
 ## 3. 架構速覽
