@@ -55,9 +55,14 @@
   /* 模板列 13 顆要擠成一排:不換行,窄螢幕才橫向捲(頁面本身永遠不橫向捲) */
   #cxBar{flex-wrap:nowrap; gap:5px; overflow-x:auto; scrollbar-width:thin; padding-bottom:2px;}
   #cxBar button{white-space:nowrap; flex:0 0 auto; font-size:12.5px; padding:8px 10px; border-radius:9px;}
-  /* 高度由 cxAutoHeight() 依內容行數決定(MSK 模板短、全身 MRI 長),這裡只給下限 */
-  #cxBody{min-height:200px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;
-    line-height:1.55; resize:vertical;}
+  /* 高度由 cxAutoHeight() 依內容行數決定(MSK 模板短、全身 MRI 長),這裡只給下限;
+     字級由 A−/A＋ 調整 --cxfs(存 localStorage),產生器的輸出欄一起跟著變 */
+  #tab-cx{--cxfs:13.5px;}
+  #cxBody{min-height:200px; font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:var(--cxfs); line-height:1.55; resize:vertical;}
+  .fsCtl{display:inline-flex; align-items:center; gap:4px; margin-left:2px;}
+  .fsCtl button{padding:6px 9px; font-size:12.5px; min-width:34px;}
+  #cxFsLabel{min-width:34px; text-align:center; cursor:pointer; font-variant-numeric:tabular-nums;}
   .tplbar.variants{margin:-4px 0 11px 0;}
   .tplbar.variants button{font-size:12.5px; padding:6px 12px; border-radius:999px;}
   .extras{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
@@ -85,7 +90,7 @@
   table.nod input,table.nod select{padding:6px 7px; font-size:13.5px; border-radius:7px;}
   table.nod .no{color:var(--accent); font-family:ui-monospace,Consolas,monospace; font-weight:700; font-size:13px;}
   .gen2{display:grid; grid-template-columns:1fr 1.05fr; gap:16px; align-items:start;}
-  .genOut textarea{min-height:190px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;}
+  .genOut textarea{min-height:190px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:var(--cxfs);}
   .genOut textarea.big{min-height:400px;}
   @media (max-width:1040px){ .gen2{grid-template-columns:1fr;} .genIn{order:-1;} }
   .badge{display:inline-block; font-size:12px; border-radius:999px; padding:3px 11px;
@@ -187,6 +192,11 @@
       <div class="row" style="margin-top:9px;">
         <button id="cxCopy">📋 複製</button>
         <button class="ghost sm" id="cxReset">↺ 還原原文</button>
+        <span class="fsCtl">
+          <button class="ghost sm" id="cxFsDown" title="字體縮小">A−</button>
+          <span class="hint" id="cxFsLabel" title="點一下回預設">13.5</span>
+          <button class="ghost sm" id="cxFsUp" title="字體放大">A＋</button>
+        </span>
         <span class="status" id="cxStatus"></span>
       </div>
       <div id="cxExtrasWrap" style="display:none">
@@ -407,12 +417,12 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260809.3"></script>
-<script src="phrases.js?v=20260809.3"></script>
-<script src="cx-templates.js?v=20260809.3"></script>
-<script src="matcher.js?v=20260809.3"></script>
-<script src="report-gen.js?v=20260809.3"></script>
-<script src="anatomy.js?v=20260809.3"></script>
+<script src="templates.js?v=20260809.4"></script>
+<script src="phrases.js?v=20260809.4"></script>
+<script src="cx-templates.js?v=20260809.4"></script>
+<script src="matcher.js?v=20260809.4"></script>
+<script src="report-gen.js?v=20260809.4"></script>
+<script src="anatomy.js?v=20260809.4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -427,7 +437,7 @@ const APP_VERSION = (() => {
 })();
 const DATA = { templates: [], phrases: [], cx: [] };
 const LS = { key:"vr_openai_key", mode:"vr_mode", base:"vr_api_base", model:"vr_api_model",
-             tab:"vr_tab", pref:"vr_pref", cxEdit:"vr_cx_" };
+             tab:"vr_tab", pref:"vr_pref", cxEdit:"vr_cx_", cxFs:"vr_cx_fontsize" };
 const esc = s => (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 async function copyText(v, ta){
@@ -486,6 +496,7 @@ const cxGroups = () => {                      // [{group, name, generator, items
   return [...m.values()];
 };
 function cxInit(){
+  cxApplyFs();
   $("cxBar").innerHTML = cxGroups().map(g =>
     `<button data-group="${esc(g.group)}">${esc(g.name)}${g.generator?" ⚙️":""}</button>`).join("");
   const first = cxGroups()[0];
@@ -533,6 +544,20 @@ function cxSelect(id){
   $("cxExtrasWrap").style.display = ex.length ? "" : "none";
   $("cxExtras").innerHTML = ex.map((e,i) => `<button data-i="${i}">+ ${esc(e.title)}</button>`).join("");
 }
+/* 模板字級:A− / A＋ 調整,點數字回預設;存 localStorage,產生器輸出欄一起套用 */
+const CX_FS_DEF = 13.5, CX_FS_MIN = 11, CX_FS_MAX = 24;
+let cxFs = parseFloat(localStorage.getItem(LS.cxFs)) || CX_FS_DEF;
+function cxApplyFs(){
+  cxFs = Math.max(CX_FS_MIN, Math.min(CX_FS_MAX, cxFs));
+  $("tab-cx").style.setProperty("--cxfs", cxFs + "px");
+  $("cxFsLabel").textContent = cxFs;
+  localStorage.setItem(LS.cxFs, cxFs);
+  cxAutoHeight();                      // 字變大行也變高,重算欄高
+}
+$("cxFsUp").onclick   = () => { cxFs += 1;   cxApplyFs(); };
+$("cxFsDown").onclick = () => { cxFs -= 1;   cxApplyFs(); };
+$("cxFsLabel").onclick = () => { cxFs = CX_FS_DEF; cxApplyFs(); };
+
 // 欄位高度跟著內容走:短模板(MSK)不留一大片空白,長模板(全身 MRI)也不會擠成小格
 function cxAutoHeight(){
   const ta = $("cxBody");

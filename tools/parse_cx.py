@@ -88,7 +88,7 @@ def msk_entries():
                 "group": g["group"], "groupName": g["groupName"],
                 "variant": it.get("variant", ""),
                 "anatomy": g["anatomy"],
-                "body": body, "extras": extras,
+                "body": tail_blank_after_impression(body), "extras": extras,
             })
     return out
 
@@ -166,6 +166,13 @@ def split_extras(body):
     return main.strip("\n"), extras
 
 
+def tail_blank_after_impression(body):
+    """正文最後一行就是 Impression: 時,後面留一個空行(游標直接接著打)。"""
+    if re.search(r"\n\s*Impression:?\s*$", body, re.I):
+        return body.rstrip() + "\n"
+    return body
+
+
 def _title(chunk):
     first = chunk.split("\n")[0].strip().lstrip("> ").rstrip(".")
     return (first[:34] + "…") if len(first) > 34 else first
@@ -205,7 +212,7 @@ def main():
             "groupName": meta.get("groupName", meta["name"]),
             "variant": meta.get("variant", ""),
             "anatomy": meta.get("anatomy", []),
-            "body": body, "extras": extras,
+            "body": tail_blank_after_impression(body), "extras": extras,
         })
 
     out += msk_entries()
