@@ -65,3 +65,16 @@
 - 決策:Stage 1 規則選模板(LLM 只當 fallback)、Stage 2 只給選中模板、輸出行號制 patch 由 JS apply(防 silent drift)。API base URL + 模型名做成可設定;預設 gpt-5-mini(`reasoning_effort: minimal`)。
 - 沒選:①gpt-5 完整版(貴 10-20 倍 + 推理延遲,任務用不到)②整份報告重出(會漏行/悄改格式,違反逐字一致)③本地 CPU 模型當主力(i7-13700 純 CPU 每份 20-60 秒,與省時目的相反;Gemma 4 E4B 降為實驗選項,26B MoE 需加 RAM 到 32GB)。
 - 狀態:active(A3 實作;模型優劣待 eval.html 數據)
+
+## 2026-08-09 MSK 模板從 AHK 模板庫「引用」而非抄進 中興標準template.txt
+- 決策:肩/膝/髖/肘/腕/踝 MRI 六組在 `tools/parse_cx.py` 的 `MSK` 清單以 id 指名 `tools/library.json`,parse 時併入中興頁。
+- 沒選:把六份文字複製進 `中興標準template.txt`(同一份報告文字會有兩個 source of truth,改 AHK 時網頁不會跟著動,遲早漂移)。
+- 代價:parse_cx.py 從此依賴 parse_ahk.py 的產物(library.json 不在就跳過 MSK 並印警告);`upload_rtdb.py` 本來就兩者都跑,實務上無感。
+- 狀態:active
+
+## 2026-08-09 解剖切片影像只放私有 RTDB,不進 repo
+- 決策:mrimaster.com 的切片壓成 JPEG(寬 ≤900、q78)存 `voiceReport/anatomy/{index,data}`,前端登入後逐張讀;`.gitignore` 擋 `anatomy/` 與 `tools/anatomy_upload.py`。
+- 理由:`mickeypeng530/type` 是 **public** repo,而該站頁尾明寫 ©All Rights Reserved —— 圖進 repo 等於公開再散布。
+- 沒選:①放 repo 當靜態檔(版權問題)②每次去原站熱連(離線失效 + 對方頻寬)③整組一次載入(七組共約 8 MB base64,首屏會爆)。
+- 代價:每張切片一次 RTDB 讀取(靠前後各預抓 2 張掩蓋延遲);本機開發要先跑一次 anatomy_upload.py 才有本機副本。
+- 狀態:active
