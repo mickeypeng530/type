@@ -1,5 +1,27 @@
 # VoiceReport — DECISION_LOG(append-only)
 
+## 2026-08-08 v4:三頁籤單頁 + 共用密碼登入 + 中興模板/產生器
+- 決策:三頁併成 `index.html` 一頁三 tab(中興模板/短句/口說),只登入一次、切換不重載;
+  舊 snippets.html 改轉址頁保書籤。
+- 登入改 **retake 模式**:Firebase Email/Password 共用帳號(`viewer@voicereport.app`)+ owner Google(唯一可寫)。
+  密碼由 Firebase Auth 保管,程式碼/RTDB 皆不存;換密碼只在 Console 改、不用改 code、不用重部署。
+  rules 由 email 制改 **UID 制**(共用帳號 email_verified=false,email 制擋不住)。
+- 沒選:①三個獨立 HTML 各自登入(要登三次、切換重載)②自寫密碼比對(等於自己保管密碼雜湊,沒比較好)。
+- 中興模板 6 個進 RTDB;LDCT / Cardiac Ca 移植成輸入式產生器(不做 AHK 的 mouse move,結果產生在網頁內)。
+- 狀態:active
+
+## 2026-08-08 LDCT 取消 L/N 之分(不再有 "Mark L1:" 前綴)
+- 決策:網頁版結節列統一格式(= AHK 的 N 樣式),預設 6 列、可 +新增;使用者已不再使用 CAD mark 標號。
+- 代價:輸出與 AHK 的 L 列不同(少了 "Mark L1:"),但使用者確認線上版不需要。
+- 狀態:active
+
+## 2026-08-08 【自我更正】先前誤報的「AHK impression 漏 N 結節」不成立
+- 我先前用 130 字元截斷讀 `0 HealthExamTemplete_stu2026.ahk` L586,誤判 impression 只串 L1-L6。
+  印出全行後:N1-N7 **有**串,且尾端還接 `%Var_lung_Fleischner%`。
+- 真實差異是結尾:一般版附 **Fleischner 2017 全文**,Lung-RADS 版附 `* Lung-RADS 2022: X`。report-gen.js 照此實作。
+- 教訓:**讀程式碼下結論前必須印完整行**,截斷輸出不足以當證據。
+- 狀態:active
+
 ## 2026-07-11 模板庫上鎖:Firebase Auth + RTDB(C 方案)
 - 決策:templates.js/phrases.js 退出公開 repo(.gitignore),模板搬進 RTDB `/voiceReport/{templates,phrases,meta}`;線上版 Google 登入(純 popup)後才載入,rules 鎖 `deer530530@gmail.com`(email_verified)。本地開發不受影響(有 templates.js 就走本地模式)。上傳器 = admin.html(本機開、登入、一鍵上雲)。
 - **共用既有專案 `income-41a40`**(inc / paperRadar 同居,各自命名空間),config 從 inc 公開原始碼取得;沒選新開專案(登入 provider、authorized domains 都現成,Phase C 中繼也同一個 console)。

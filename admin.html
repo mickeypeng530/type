@@ -34,7 +34,8 @@
 <script src="templates.js"></script>
 <script src="phrases.js"></script>
 <script type="module">
-import { app, configReady } from "./firebase-config.js";
+import { fbApp as app } from "./firebase-init.js";
+const configReady = true;
 const $=id=>document.getElementById(id);
 const say=(m,c)=>{ const e=$("st"); e.textContent=m; e.className="status "+(c||""); };
 

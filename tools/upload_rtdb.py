@@ -26,11 +26,13 @@ def main():
         sys.exit(f"❌ 找不到 {KEY}\n→ Firebase Console → 專案設定 → 服務帳戶 → 產生新的私密金鑰,存成這個檔名。")
 
     if "--no-parse" not in sys.argv:
-        print("① 解析 AHK …")
+        print("① 解析 AHK + 中興模板 …")
         subprocess.run([sys.executable, str(HERE / "parse_ahk.py")], check=True)
+        subprocess.run([sys.executable, str(HERE / "parse_cx.py")], check=True)
 
     lib = json.loads((HERE / "library.json").read_text(encoding="utf-8"))
     t, p = lib["templates"], lib["phrases"]
+    cx = json.loads((HERE / "cx.json").read_text(encoding="utf-8"))
 
     print("② 上傳 RTDB …")
     import firebase_admin
@@ -39,19 +41,22 @@ def main():
     db.reference("voiceReport").set({
         "templates": t,
         "phrases": p,
+        "cxTemplates": cx,
         "meta": {
             "templatesCount": len(t),
             "phrasesCount": len(p),
+            "cxCount": len(cx),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
-            "source": "0 Peng Rclick.ahk via parse_ahk.py + upload_rtdb.py",
+            "source": "0 Peng Rclick.ahk + 中興標準template.txt via parse_*.py + upload_rtdb.py",
         },
     })
 
     print("③ 讀回驗證 …")
     m = db.reference("voiceReport/meta").get()
     n = len(db.reference("voiceReport/templates").get() or [])
-    print(f"✅ 雲端現況:模板 {n} 個(meta 記 {m['templatesCount']}/{m['phrasesCount']}),更新於 {m['updatedAt']}")
-    assert n == len(t), "讀回數量對不上!"
+    ncx = len(db.reference("voiceReport/cxTemplates").get() or [])
+    print(f"✅ 雲端現況:模板 {n} / 短語 {m['phrasesCount']} / 中興 {ncx},更新於 {m['updatedAt']}")
+    assert n == len(t) and ncx == len(cx), "讀回數量對不上!"
 
 
 if __name__ == "__main__":

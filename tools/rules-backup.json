@@ -41,8 +41,8 @@
       }
     },
     "voiceReport": {
-      ".read": "auth != null && (auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2' || auth.uid === '0pFD7DVEqkMlAPx0YON0McITYXG2')",
-      ".write": "auth != null && auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2'"
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email === 'deer530530@gmail.com'",
+      ".write": "auth != null && auth.token.email_verified == true && auth.token.email === 'deer530530@gmail.com'"
     }
   }
 }

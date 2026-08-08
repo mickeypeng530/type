@@ -1,4 +1,4 @@
-# VoiceReport — 現況快照
+# VoiceReport — 現況快照(v4)
 
 ## 1. 這專案在做什麼
 口說打放射報告。對著手機/電腦說一句(例：「CT noncontrast brain, no bleeding」)
@@ -7,6 +7,16 @@
 走「路線 B」：**OpenAI API + 單檔 SPA**(非 LizardType 的 macOS cookie 方案——那條在 Windows 走不通)。
 
 ## 2. 現在進度到哪
+- ✅ **v4 三頁籤單頁（2026-08-08）**:`index.html` 一頁三 tab、只登入一次:
+  **📋 中興模板 / ⌨️ 短句 / 🎤 口說**(分頁選擇記在 localStorage `vr_tab`)。
+  舊 `snippets.html` 改成轉址頁(保留書籤)。
+- ✅ **登入改 retake 模式**:共用密碼(Firebase Email/Password 帳號 `viewer@voicereport.app`,
+  密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
+  + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
+  設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
+- ✅ **中興模板頁**:6 個模板(Brain+TOF / MRCP上腹 / 腰椎MRI / 全身MRI / LDCT / Cardiac Ca)。
+  前 4 個可在網頁內編輯後複製(編輯暫存 localStorage `vr_cx_*`,可還原原文),附「選配句」按鈕插入游標處。
+  LDCT 與 Cardiac Ca 是**輸入式產生器**(移植自 `../0 HealthExamTemplete_stu2026.ahk`,見 `report-gen.js`)。
 - ✅ **Phase 1 / v2（完成）**：`index.html` 單檔 SPA。**核心 UX = 口述進文字框 → 按「產生報告」**。
   - **STT 改用 OS 系統聽寫**（iOS 鍵盤 🎤 / Windows Win+H）直接打進①口述框 → 免費、穩、跨平台。
   - 🆓 **免費模式（預設）**：本地關鍵字規則選模板（`matchTemplate()`）→ 顯示模板原文。零 key、零成本。
@@ -32,6 +42,15 @@
 - 決策脈絡見 [DECISION_LOG.md](DECISION_LOG.md)。
 
 ## 3. 架構速覽
+- **v4 檔案結構**(零 build,GitHub Pages 直上):
+  - `index.html` — 殼 + 登入 + 三個 tab 的全部 UI/邏輯
+  - `firebase-init.js` — Firebase config + `OWNER_UID` / `SHARED_UID` / `SHARED_EMAIL`(取代舊 firebase-config.js)
+  - `matcher.js` — 口說分頁的選模板計分器
+  - `report-gen.js` — 中興分頁的 LDCT / Cardiac Ca 產生器(移植自 health AHK)
+  - `templates.js` / `phrases.js` / `cx-templates.js` — 本機資料檔(gitignored,線上走 RTDB)
+  - `snippets.html` — 轉址頁(舊書籤相容)
+- **中興模板**:source of truth = `../中興標準template.txt`,由 `tools/parse_cx.py` 解析成
+  `{id,name,body,extras[],generator}`;`generator:true` 的兩個(LDCT/Cardiac)由 report-gen.js 接手。
 - 單檔 `voice-report/index.html`，零 build、可丟 GitHub Pages。
 - **STT = OS 系統聽寫**（app 本身不做 STT）：使用者點①口述 `textarea`，用 iOS 鍵盤 🎤 或 Windows Win+H 把語音轉成文字。免費、穩。
 - **填模板**：`gpt-4o-mini`，`response_format=json_object`，回 `{templateId, report}`。核心邏輯在 `buildSystemPrompt()`。輸入是①口述框的純文字。
@@ -56,10 +75,19 @@
 - **AHK `{tab}` = PACS 跳下一欄位**（findings → impression），不是替代句。`(...)` 區塊的判定要跟 AHK 規則一致：內容行也可能以 `(` 開頭（如 `(1) axial T2WI`），只有「緊接定義行/`Clipboard =` 後的 `(`」才是區塊開頭，`)` 開頭的行才收尾。
 - **script 型 hotstring 藏著真模板**（如 `xc/`）：靠剪貼簿貼上多段 + `send {tab}`，parser 有專門處理;純鍵盤巨集（開網址/刪行）才跳過。
 - **matcher 的 c/l/t-spine 縮寫正規化必須帶 `\b`**：不然 "lumbosacra**l spine**"、"cervica**l spine**" 會被 `/l[\s-]?spine/` 誤咬成 lumbar spine（已踩過）。
+- **RTDB rules 是「整份取代」,本機 `database.rules.json` 可能過期**:2026-08-08 差點用舊檔覆蓋,
+  會弄掉線上才有的 worknum 規則。**改 rules 一律「先讀線上 → 只改自己那個節點 → 寫回」**,
+  並先備份到 `tools/rules-backup.json`。
+- **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
+  (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
+  本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
 - **eval.html 目前是合成測試集**，數字只證明機制通、不代表真實口述表現;拿到真實測資要整批替換再看分數。
 
 ## 5. 接手者 cheatsheet
 - **改模板 → 改 `../0 Peng Rclick.ahk`，然後 `python tools/upload_rtdb.py`(= 解析 + 上雲 + 驗證,一條命令)**。需 `service-account.json` 在 voice-report/(gitignored;Console → 服務帳戶 → 產生私密金鑰)。只想重生本地檔不上雲 → `python tools/parse_ahk.py`。瀏覽器手動備援 → `admin.html`。
+- **改中興模板 → 改 `../中興標準template.txt`,然後同樣跑 `python tools/upload_rtdb.py`**
+  (它會同時跑 parse_ahk.py 與 parse_cx.py 再上雲)。
+- 改 LDCT / Ca 產生器的文字或邏輯 → `report-gen.js`(選項常數在檔案最上方,與 AHK 下拉原文一致)。
 - 抽查解析結果 → 瀏覽器開 `tools/review.html`（可過濾）。
 - 改選模板規則/誤聽別名/同義詞 → `matcher.js`（MISHEAR / SYN / NAME_EXPAND / 計分在 `vrMatch`、自動選門檻在 `vrPick`）。
 - 改後必跑 → 開 `eval.html` 看 Top-1/Top-3 有沒有退步（防 regression，10 秒）。
