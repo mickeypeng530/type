@@ -46,20 +46,16 @@ META = [
 #    anatomy  = 這個部位對應的解剖切片系列(顯示在模板下方,資料在 RTDB)
 MSK = [
     dict(group="cx-msk-shoulder", groupName="MRI 肩關節", anatomy=["shoulder-axial"], items=[
-        dict(id="cx-msk-shoulder-1", src="mrsho",  variant="標準"),
-        dict(id="cx-msk-shoulder-2", src="mrsho3", variant="詳細版", split=2),
+        dict(id="cx-msk-shoulder-1", src="mrsho", variant=""),
     ]),
     dict(group="cx-msk-knee", groupName="MRI 膝關節", anatomy=["knee-axial"], items=[
         dict(id="cx-msk-knee-1", src="mrkn", variant="", split=2),
     ]),
     dict(group="cx-msk-hip", groupName="MRI 髖關節", anatomy=["hip-axial"], items=[
-        dict(id="cx-msk-hip-1", src="mrh",  variant="沒打藥 (without)"),
-        dict(id="cx-msk-hip-2", src="mr2h", variant="有打藥 (with/without)"),
-        dict(id="cx-msk-hip-3", src="mrf",  variant="大腿 / 股骨"),
+        dict(id="cx-msk-hip-1", src="mrh", variant=""),
     ]),
     dict(group="cx-msk-elbow", groupName="MRI 肘關節", anatomy=["elbow-axial"], items=[
-        dict(id="cx-msk-elbow-1", src="mrel",  variant="條列式", split=1),
-        dict(id="cx-msk-elbow-2", src="mrel1", variant="編號式"),
+        dict(id="cx-msk-elbow-1", src="mrel", variant="", split=1),
     ]),
     dict(group="cx-msk-wrist", groupName="MRI 腕關節",
          anatomy=["wrist-axial", "wrist-coronal"], items=[

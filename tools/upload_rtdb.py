@@ -38,17 +38,18 @@ def main():
     import firebase_admin
     from firebase_admin import credentials, db
     firebase_admin.initialize_app(credentials.Certificate(str(KEY)), {"databaseURL": DB_URL})
-    db.reference("voiceReport").set({
-        "templates": t,
-        "phrases": p,
-        "cxTemplates": cx,
-        "meta": {
-            "templatesCount": len(t),
-            "phrasesCount": len(p),
-            "cxCount": len(cx),
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
-            "source": "0 Peng Rclick.ahk + 中興標準template.txt via parse_*.py + upload_rtdb.py",
-        },
+    # ⚠️ 只動自己負責的四個節點,絕不 set() 整個 voiceReport ——
+    #    整份取代會連同 anatomy(解剖切片)與 counter(共用計數器)一起洗掉。
+    #    2026-08-09 就是這樣把 anatomy + counter 清空的,別再犯。
+    db.reference("voiceReport/templates").set(t)
+    db.reference("voiceReport/phrases").set(p)
+    db.reference("voiceReport/cxTemplates").set(cx)
+    db.reference("voiceReport/meta").set({
+        "templatesCount": len(t),
+        "phrasesCount": len(p),
+        "cxCount": len(cx),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "source": "0 Peng Rclick.ahk + 中興標準template.txt via parse_*.py + upload_rtdb.py",
     })
 
     print("③ 讀回驗證 …")
