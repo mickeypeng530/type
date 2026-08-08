@@ -108,16 +108,20 @@
   #xhTotal{font-size:14px; color:var(--accent);}
   #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
   #xhBar.open #xhPanel{display:block;}
-  .xhGrid{display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
-  .xhItem{display:flex; gap:5px; align-items:center; font-size:13px;}
-  .xhItem label{margin:0; font-size:13px; color:var(--text);}
+  /* 六個項目固定排成 3 欄 × 2 列;欄寬吃內容(不撐滿),窄螢幕才降成 2 欄 / 1 欄 */
+  .xhGrid{display:grid; grid-template-columns:repeat(3, auto); justify-content:start;
+    gap:7px 20px; align-items:center;}
+  @media (max-width:760px){ .xhGrid{grid-template-columns:repeat(2, auto);} }
+  @media (max-width:460px){ .xhGrid{grid-template-columns:auto;} }
+  .xhItem{display:flex; gap:4px; align-items:center; font-size:13px;}
+  .xhItem label{margin:0; font-size:13px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
-  .xhItem input[type=number]{width:58px; text-align:center; padding:6px; font-size:14px;
+  .xhItem input[type=number]{width:44px; text-align:center; padding:5px 2px; font-size:14px;
     appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
   .xhItem input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-  .xhItem button{padding:5px 10px; font-size:14px; line-height:1;}
-  .xhBaseItem{padding:4px 9px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
+  .xhItem button{padding:4px 9px; font-size:14px; line-height:1;}
+  .xhBaseItem{padding:3px 8px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
   .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
   .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
   .xhBaseItem.done .xhProg{color:var(--ok); font-weight:700;}
@@ -364,11 +368,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.8"></script>
-<script src="phrases.js?v=20260808.8"></script>
-<script src="cx-templates.js?v=20260808.8"></script>
-<script src="matcher.js?v=20260808.8"></script>
-<script src="report-gen.js?v=20260808.8"></script>
+<script src="templates.js?v=20260808.9"></script>
+<script src="phrases.js?v=20260808.9"></script>
+<script src="cx-templates.js?v=20260808.9"></script>
+<script src="matcher.js?v=20260808.9"></script>
+<script src="report-gen.js?v=20260808.9"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
