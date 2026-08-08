@@ -302,11 +302,13 @@
 </div>
 
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
-<script src="templates.js"></script>
-<script src="phrases.js"></script>
-<script src="cx-templates.js"></script>
-<script src="matcher.js"></script>
-<script src="report-gen.js"></script>
+<!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
+     「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
+<script src="templates.js?v=4"></script>
+<script src="phrases.js?v=4"></script>
+<script src="cx-templates.js?v=4"></script>
+<script src="matcher.js?v=4"></script>
+<script src="report-gen.js?v=4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -334,6 +336,9 @@ function flash(el, msg, cls){
 
 /* ══════════════════ 啟動 ══════════════════ */
 function boot(src, d){
+  // 部署競態/快取不同步防呆:必要的 JS 沒載進來就明講並讓使用者重載,別吐神祕錯誤
+  const missing = ["vrBuildIndex","vrPick","ldGenerate","caGenerate"].filter(f => typeof window[f] !== "function");
+  if(missing.length) throw new Error("程式檔沒載齊(" + missing.join(", ") + ")— 請重新整理頁面");
   DATA.templates = d.templates || []; DATA.phrases = d.phrases || []; DATA.cx = d.cx || [];
   vrBuildIndex(DATA.templates);
   $("srcInfo").textContent = `${DATA.templates.length} 模板 · ${DATA.phrases.length} 短句 ${src==="cloud"?"☁️":"💻"}`;
@@ -723,7 +728,11 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
       ]);
       if(!t.exists()) throw new Error("雲端還沒有模板資料");
       window.boot("cloud", {templates: t.val(), phrases: p.val() || [], cx: c.val() || []});
-    }catch(e){ err("讀取失敗:"+(e.message || e.code)); }
+    }catch(e){
+      err("讀取失敗:"+(e.message || e.code));
+      $("loginErr").insertAdjacentHTML("beforeend",
+        ' <button class="ghost sm" onclick="location.reload()" style="margin-left:6px">↻ 重新載入</button>');
+    }
   });
 }else{
   $("logoutBtn").style.display = "none";       // 本機模式沒有登入可登出
