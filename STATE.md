@@ -47,8 +47,9 @@
 - ✅ **snippets.html（2026-07-12）**：純網頁版可複製 hotkey——公用電腦不能裝 AHK 時的替代。打縮寫(nln/ct2b)→ Enter 複製第一筆,或關鍵字搜尋 → 點按複製;涵蓋全部 236 模板 + 1101 短句。全部/短句/模板 篩選;模板另出 Impression 鈕。與 index.html 共用 firebase-config(雲端登入載 templates+phrases)、templates.js/phrases.js(本地)。**獨立頁,不動 index.html 設計**;彼此以 header 連結互通。
 - ✅ **共用計數器(2026-08-08)**:固定在頁面最下方的計數列,三個分頁共用。移植自
   `~/Claude_Work/中興計數器_移植參考.md`(基本 MRI 打勾 10 份 + 其餘 ±1/直接打字)。
-  **資料只存 localStorage `vr_xh`(按日期分)**——RTDB 的共用密碼帳號是唯讀,且共用密碼若給多人,
-  雲端計數會互相混到。有「📋 複製」輸出當日摘要,可貼進 Worknum。
+  **跨裝置同步**:RTDB `voiceReport/counter/<日期>` 是真相(工作站數、回家看),localStorage 當離線快取。
+  rules 只把 `counter` 子節點開放給共用帳號寫,voiceReport 其餘節點仍是 owner 才能寫。
+  首次同步時若雲端空、本機有資料,會把本機推上去(不會被空快照洗掉)。有「📋 複製」輸出當日摘要,可貼進 Worknum。
 - 決策脈絡見 [DECISION_LOG.md](DECISION_LOG.md)。
 
 ## 3. 架構速覽

@@ -355,11 +355,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.4"></script>
-<script src="phrases.js?v=20260808.4"></script>
-<script src="cx-templates.js?v=20260808.4"></script>
-<script src="matcher.js?v=20260808.4"></script>
-<script src="report-gen.js?v=20260808.4"></script>
+<script src="templates.js?v=20260808.5"></script>
+<script src="phrases.js?v=20260808.5"></script>
+<script src="cx-templates.js?v=20260808.5"></script>
+<script src="matcher.js?v=20260808.5"></script>
+<script src="report-gen.js?v=20260808.5"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -807,8 +807,34 @@ const xhTotalCount = day => XH_SCHEMA.reduce((s, it) => s + xhCount(day, it.key)
 const xhBreakdownText = day => XH_SCHEMA.filter(it => xhCount(day, it.key))
   .map(it => `${it.label} ${xhCount(day, it.key)}`).join(" · ");
 
+/* 雲端同步:localStorage 當離線快取,RTDB `voiceReport/counter/<日期>` 是跨裝置的真相。
+   xhCloudSave 由下方 module script 在雲端模式時掛上;本機模式維持純 localStorage。 */
+window.xhCloudSave = null;
+let xhFirstSnap = true;
+function xhApplyRemote(val){
+  const remote = val || {};
+  if(xhFirstSnap){
+    xhFirstSnap = false;
+    // 雲端還沒有資料、本機卻有 → 把本機既有的推上去,別被空快照洗掉
+    if(!Object.keys(remote).length && Object.keys(XH_ALL).length){
+      if(window.xhCloudSave) for(const d of Object.keys(XH_ALL)) window.xhCloudSave(d, XH_ALL[d]);
+      return;
+    }
+  }
+  XH_ALL = remote;
+  localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
+  // 使用者正在某個格子裡打字 → 只更新摘要,不重建 DOM(否則焦點會被搶走)
+  const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#xhGrid");
+  if(typing) xhRefreshSummary(); else xhRenderPanel();
+}
+window.xhApplyRemote = xhApplyRemote;
+
 let xhTimer;                                   // 所有欄位共用一個 timer,避免重疊寫入
-function xhSaveNow(){ localStorage.setItem(XH_LS, JSON.stringify(XH_ALL)); }
+function xhSaveNow(){
+  localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
+  // 整天空了要寫 null(RTDB 遇 undefined 會同步 throw,且 null 才是刪除)
+  if(window.xhCloudSave) window.xhCloudSave(xhDate, XH_ALL[xhDate] || null);
+}
 function xhSaveDebounced(){ clearTimeout(xhTimer); xhTimer = setTimeout(xhSaveNow, 400); }
 addEventListener("pagehide", xhSaveNow);
 addEventListener("visibilitychange", () => { if(document.hidden) xhSaveNow(); });
@@ -890,7 +916,7 @@ if(typeof TEMPLATES !== "undefined" && typeof CX_TEMPLATES !== "undefined"){
 import { fbAuth, fbDb, OWNER_UID, SHARED_UID, SHARED_EMAIL } from "./firebase-init.js";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = id => document.getElementById(id);
 const err = m => { $("loginErr").textContent = m; $("loginErr").className = "status err"; };
@@ -926,7 +952,10 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
         get(ref(fbDb, "voiceReport/cxTemplates")),
       ]);
       if(!t.exists()) throw new Error("雲端還沒有模板資料");
+      // 計數器雲端同步(counter 是 voiceReport 底下唯一開放共用帳號寫入的節點)
+      window.xhCloudSave = (date, day) => set(ref(fbDb, "voiceReport/counter/" + date), day);
       window.boot("cloud", {templates: t.val(), phrases: p.val() || [], cx: c.val() || []});
+      onValue(ref(fbDb, "voiceReport/counter"), snap => window.xhApplyRemote(snap.val()));
     }catch(e){
       err("讀取失敗:"+(e.message || e.code));
       $("loginErr").insertAdjacentHTML("beforeend",

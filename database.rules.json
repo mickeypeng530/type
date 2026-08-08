@@ -42,7 +42,10 @@
     },
     "voiceReport": {
       ".read": "auth != null && (auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2' || auth.uid === '0pFD7DVEqkMlAPx0YON0McITYXG2')",
-      ".write": "auth != null && auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2'"
+      ".write": "auth != null && auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2'",
+      "counter": {
+        ".write": "auth != null && (auth.uid === 'QtXg0hI1XxfaVxi16lyb1ezYWin2' || auth.uid === '0pFD7DVEqkMlAPx0YON0McITYXG2')"
+      }
     }
   }
 }
