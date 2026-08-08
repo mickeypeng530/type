@@ -10,8 +10,9 @@
 - ✅ **v4 三頁籤單頁（2026-08-08）**:`index.html` 一頁三 tab、只登入一次:
   **📋 中興模板 / ⌨️ 短句 / 🎤 口說**(分頁選擇記在 localStorage `vr_tab`)。
   舊 `snippets.html` 改成轉址頁(保留書籤)。
-  **版號**:script 標籤的 `?v=N` 是唯一來源,標題列與登入畫面的版號由 JS 從 script src 讀出來顯示
-  (`APP_VERSION`),所以只要改 `?v=` 一處,畫面版號自動同步、永遠等於實際載入的版本。
+  **版號 = 日期 + 流水號**(`?v=YYYYMMDD.N`,例 `20260808.2` → 畫面顯示 `2026-08-08 #2`)。
+  升版跑 `python tools/bump_version.py`(同日 +1、跨日歸 1);script 的 `?v=` 是唯一真相,
+  標題列與登入畫面的版號由 JS 讀 script src 顯示(`APP_VERSION`),永遠等於實際載入的版本。
 - ✅ **登入改 retake 模式**:共用密碼(Firebase Email/Password 帳號 `viewer@voicereport.app`,
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
@@ -92,6 +93,7 @@
 - **改模板 → 改 `../0 Peng Rclick.ahk`，然後 `python tools/upload_rtdb.py`(= 解析 + 上雲 + 驗證,一條命令)**。需 `service-account.json` 在 voice-report/(gitignored;Console → 服務帳戶 → 產生私密金鑰)。只想重生本地檔不上雲 → `python tools/parse_ahk.py`。瀏覽器手動備援 → `admin.html`。
 - **改中興模板 → 改 `../中興標準template.txt`,然後同樣跑 `python tools/upload_rtdb.py`**
   (它會同時跑 parse_ahk.py 與 parse_cx.py 再上雲)。
+- **改完任何前端檔要部署前先跑 `python tools/bump_version.py`**(升版號 + 破快取)。
 - 改 LDCT / Ca 產生器的文字或邏輯 → `report-gen.js`(選項常數在檔案最上方,與 AHK 下拉原文一致)。
 - 抽查解析結果 → 瀏覽器開 `tools/review.html`（可過濾）。
 - 改選模板規則/誤聽別名/同義詞 → `matcher.js`（MISHEAR / SYN / NAME_EXPAND / 計分在 `vrMatch`、自動選門檻在 `vrPick`）。
