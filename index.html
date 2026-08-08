@@ -13,7 +13,7 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;}
-  body{max-width:1360px; margin:0 auto; padding:12px 12px 60px;}
+  body{max-width:1360px; margin:0 auto; padding:12px 12px 80px;}   /* 下方留給固定計數器列 */
   h1{font-size:17px; margin:2px 0 10px; font-weight:600;}
   h1 small{color:var(--muted); font-weight:400; font-size:12px;}
   label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
@@ -98,6 +98,23 @@
   .seg button{flex:1; border-radius:0; background:var(--panel2); color:var(--muted); font-size:13.5px; padding:10px;}
   .seg button.on{background:var(--accent); color:#fff;}
   #impCard{display:none;}
+
+  /* 共用計數器(固定在最下面,三個分頁都看得到) */
+  #xhBar{position:fixed; left:0; right:0; bottom:0; z-index:30;
+    background:var(--panel); border-top:1px solid var(--line); box-shadow:0 -4px 16px rgba(0,0,0,.35);}
+  #xhInner{max-width:1360px; margin:0 auto; padding:8px 12px;}
+  #xhSummaryRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  #xhSummary{font-size:12.5px; color:var(--muted);}
+  #xhTotal{font-size:14px; color:var(--accent);}
+  #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
+  #xhBar.open #xhPanel{display:block;}
+  .xhGrid{display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
+  .xhItem{display:flex; gap:5px; align-items:center; font-size:13px;}
+  .xhItem label{margin:0; font-size:13px; color:var(--text);}
+  .xhItem input[type=number]{width:58px; text-align:center; padding:6px; font-size:14px;}
+  .xhItem button{padding:5px 10px; font-size:14px; line-height:1;}
+  .xhBase{display:flex; gap:6px; align-items:center; font-size:13px;
+    padding:5px 10px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
 </style>
 </head>
 <body>
@@ -317,16 +334,32 @@
       </div>
     </div>
   </section>
+
+  <!-- ───────── 共用計數器(固定最下面,三個分頁共用) ───────── -->
+  <div id="xhBar">
+    <div id="xhInner">
+      <div id="xhPanel"><div class="xhGrid" id="xhGrid"></div></div>
+      <div id="xhSummaryRow">
+        <button class="ghost sm" id="xhToggle">🧮 計數</button>
+        <input type="date" id="xhDate" style="padding:5px 8px; font-size:13px">
+        <span id="xhSummary"></span>
+        <span style="flex:1"></span>
+        <b id="xhTotal"></b>
+        <button class="ghost sm" id="xhCopy">📋 複製</button>
+        <span class="status" id="xhStatus" style="margin:0; min-height:0"></span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.3"></script>
-<script src="phrases.js?v=20260808.3"></script>
-<script src="cx-templates.js?v=20260808.3"></script>
-<script src="matcher.js?v=20260808.3"></script>
-<script src="report-gen.js?v=20260808.3"></script>
+<script src="templates.js?v=20260808.4"></script>
+<script src="phrases.js?v=20260808.4"></script>
+<script src="cx-templates.js?v=20260808.4"></script>
+<script src="matcher.js?v=20260808.4"></script>
+<script src="report-gen.js?v=20260808.4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -370,7 +403,7 @@ function boot(src, d){
   $("srcInfo").textContent = `${APP_VERSION} · 中興 ${cxGroups().length} · 模板 ${DATA.templates.length} · 短句 ${DATA.phrases.length} ${src==="cloud"?"☁️":"💻"}`;
   $("loginGate").style.display = "none";
   $("app").style.display = "";
-  cxInit(); snipInit(); voiceInit();
+  cxInit(); snipInit(); voiceInit(); xhInit();
   switchTab(localStorage.getItem(LS.tab) || "cx");
 }
 window.boot = boot;
@@ -750,6 +783,99 @@ $("copyImpBtn").onclick = async () => { const ok = await copyText($("impression"
   setVStatus(ok ? "Impression 已複製 ✓" : "複製失敗", ok ? "ok" : "err"); };
 $("clearBtn").onclick = () => { $("dictation").value=""; $("result").value=""; $("impression").value="";
   $("impCard").style.display="none"; $("matched").innerHTML=""; currentTpl=null; applyMode(); };
+
+/* ══════════════════ 共用計數器(移植自 中興計數器_移植參考.md)══════════════════
+   資料只存本機 localStorage(RTDB 的共用密碼帳號是唯讀;若多人共用密碼,雲端計數也會互相混到)。 */
+const XH_SCHEMA = [
+  { key:"mriBase", label:"基本 MRI", base:true },   // base:true → 打勾一次填滿,不用按 10 下
+  { key:"mriC",    label:"額外 MRI 打藥" },
+  { key:"mriNc",   label:"額外 MRI 不打藥" },
+  { key:"ca",      label:"Ca" },
+  { key:"ctC",     label:"CT 打藥" },
+  { key:"ctNc",    label:"CT 不打藥" },
+];
+const XH_BASE_N = 10;
+const XH_LS = "vr_xh", XH_OPEN_LS = "vr_xh_open";
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+let XH_ALL = (() => { try{ return JSON.parse(localStorage.getItem(XH_LS) || "{}"); }catch(_){ return {}; } })();
+let xhDate = ymd(new Date());
+const xhDay = () => (XH_ALL[xhDate] = XH_ALL[xhDate] || {});
+
+const xhCount = (day, key) => Number(day && day[key]) || 0;
+const xhTotalCount = day => XH_SCHEMA.reduce((s, it) => s + xhCount(day, it.key), 0);
+const xhBreakdownText = day => XH_SCHEMA.filter(it => xhCount(day, it.key))
+  .map(it => `${it.label} ${xhCount(day, it.key)}`).join(" · ");
+
+let xhTimer;                                   // 所有欄位共用一個 timer,避免重疊寫入
+function xhSaveNow(){ localStorage.setItem(XH_LS, JSON.stringify(XH_ALL)); }
+function xhSaveDebounced(){ clearTimeout(xhTimer); xhTimer = setTimeout(xhSaveNow, 400); }
+addEventListener("pagehide", xhSaveNow);
+addEventListener("visibilitychange", () => { if(document.hidden) xhSaveNow(); });
+
+function setXhCount(key, val, debounce){
+  const v = Math.max(0, Math.round(Number(val) || 0));   // 夾 0、取整、壞值當 0
+  const day = xhDay();
+  if(v) day[key] = v; else delete day[key];             // 0 就刪 key,不留雜訊
+  if(!Object.keys(day).length) delete XH_ALL[xhDate];
+  debounce ? xhSaveDebounced() : xhSaveNow();
+}
+function bumpXh(key, delta){
+  setXhCount(key, xhCount(XH_ALL[xhDate], key) + delta);
+  xhRenderPanel();                                       // 按鈕不是連續事件,重繪安全
+}
+
+// ⚠ 只改文字,不動 DOM 結構 —— 打字中呼叫這個,否則正在輸入的格子會被砍掉重建、焦點消失
+function xhRefreshSummary(){
+  const day = XH_ALL[xhDate], n = xhTotalCount(day);
+  $("xhSummary").textContent = xhBreakdownText(day);
+  $("xhTotal").textContent = n ? `${n} 件` : "";
+}
+function xhRenderPanel(){
+  const day = XH_ALL[xhDate];
+  const g = $("xhGrid"); g.innerHTML = "";
+  for(const it of XH_SCHEMA){
+    if(it.base){                                         // 固定份數:打勾
+      const v = xhCount(day, it.key);
+      const wrap = document.createElement("label"); wrap.className = "xhBase";
+      const box = document.createElement("input"); box.type = "checkbox"; box.checked = v > 0;
+      box.onchange = () => { setXhCount(it.key, box.checked ? XH_BASE_N : 0); xhRenderPanel(); };
+      wrap.append(box, ` ${it.label} ${v && v !== XH_BASE_N ? v : XH_BASE_N} 份`);
+      g.appendChild(wrap); continue;
+    }
+    const row = document.createElement("div"); row.className = "xhItem";
+    const lab = document.createElement("label"); lab.textContent = it.label;
+    const minus = document.createElement("button"); minus.className = "ghost"; minus.textContent = "−";
+    const plus  = document.createElement("button"); plus.className  = "ghost"; plus.textContent  = "＋";
+    minus.tabIndex = plus.tabIndex = -1;                 // Tab 只在數字格之間跳
+    minus.onclick = () => bumpXh(it.key, -1);
+    plus.onclick  = () => bumpXh(it.key, +1);
+    const input = document.createElement("input");
+    input.type = "number"; input.inputMode = "numeric"; input.min = "0";
+    input.value = String(xhCount(day, it.key));
+    input.onfocus = e => e.target.select();               // 點進去直接蓋掉
+    input.oninput = e => { setXhCount(it.key, e.target.value, true); xhRefreshSummary(); };
+    row.append(lab, minus, input, plus);
+    g.appendChild(row);
+  }
+  xhRefreshSummary();
+}
+function xhInit(){
+  $("xhDate").value = xhDate;
+  $("xhBar").classList.toggle("open", localStorage.getItem(XH_OPEN_LS) === "1");
+  $("xhToggle").onclick = () => {
+    const open = !$("xhBar").classList.contains("open");
+    $("xhBar").classList.toggle("open", open);
+    localStorage.setItem(XH_OPEN_LS, open ? "1" : "0");
+  };
+  $("xhDate").onchange = () => { xhDate = $("xhDate").value || ymd(new Date()); xhRenderPanel(); };
+  $("xhCopy").onclick = async () => {
+    const day = XH_ALL[xhDate], n = xhTotalCount(day);
+    const txt = n ? `${xhDate} ${xhBreakdownText(day)}(共 ${n} 件)` : `${xhDate} 無`;
+    flash($("xhStatus"), (await copyText(txt)) ? "已複製 ✓" : "複製失敗");
+  };
+  xhRenderPanel();
+}
 
 $("loginVer").textContent = APP_VERSION;
 

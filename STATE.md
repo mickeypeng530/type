@@ -45,6 +45,10 @@
 - ⏳ **C 手機中繼（選配）**：Firebase RTDB，只在 B 走不通時才做。
 - ✅ **部署（C 方案,2026-07-12 v3 已上線 commit 1bbd1a5）**：模板庫上鎖——templates.js/phrases.js 不進 repo，線上版 Google 登入(純 popup)→ RTDB `/voiceReport/*` 載模板，rules 鎖 `deer530530@gmail.com`(規則已含既有 users/paperRadar,共用 income-41a40)。雲端現況 236/1101(psh、pshid 已清)。模板同步一條命令 `python tools/upload_rtdb.py`(admin key 複製自 Worknum/scripts,gitignored);admin.html 為瀏覽器備援。本地有 templates.js 自動走本地模式。
 - ✅ **snippets.html（2026-07-12）**：純網頁版可複製 hotkey——公用電腦不能裝 AHK 時的替代。打縮寫(nln/ct2b)→ Enter 複製第一筆,或關鍵字搜尋 → 點按複製;涵蓋全部 236 模板 + 1101 短句。全部/短句/模板 篩選;模板另出 Impression 鈕。與 index.html 共用 firebase-config(雲端登入載 templates+phrases)、templates.js/phrases.js(本地)。**獨立頁,不動 index.html 設計**;彼此以 header 連結互通。
+- ✅ **共用計數器(2026-08-08)**:固定在頁面最下方的計數列,三個分頁共用。移植自
+  `~/Claude_Work/中興計數器_移植參考.md`(基本 MRI 打勾 10 份 + 其餘 ±1/直接打字)。
+  **資料只存 localStorage `vr_xh`(按日期分)**——RTDB 的共用密碼帳號是唯讀,且共用密碼若給多人,
+  雲端計數會互相混到。有「📋 複製」輸出當日摘要,可貼進 Worknum。
 - 決策脈絡見 [DECISION_LOG.md](DECISION_LOG.md)。
 
 ## 3. 架構速覽
@@ -87,6 +91,8 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **計數器的 `oninput` 絕不能重繪 DOM**:重建 input 會讓正在打字的格子失去焦點(症狀=「只能按 ±1、不能直接打數字」)。
+  拆兩層:`xhRenderPanel()` 可動 DOM(換日/±1),`xhRefreshSummary()` 只改 textContent(打字中)。
 - **eval.html 目前是合成測試集**，數字只證明機制通、不代表真實口述表現;拿到真實測資要整批替換再看分數。
 
 ## 5. 接手者 cheatsheet
