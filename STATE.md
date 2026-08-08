@@ -46,7 +46,10 @@
 - ✅ **部署（C 方案,2026-07-12 v3 已上線 commit 1bbd1a5）**：模板庫上鎖——templates.js/phrases.js 不進 repo，線上版 Google 登入(純 popup)→ RTDB `/voiceReport/*` 載模板，rules 鎖 `deer530530@gmail.com`(規則已含既有 users/paperRadar,共用 income-41a40)。雲端現況 236/1101(psh、pshid 已清)。模板同步一條命令 `python tools/upload_rtdb.py`(admin key 複製自 Worknum/scripts,gitignored);admin.html 為瀏覽器備援。本地有 templates.js 自動走本地模式。
 - ✅ **snippets.html（2026-07-12）**：純網頁版可複製 hotkey——公用電腦不能裝 AHK 時的替代。打縮寫(nln/ct2b)→ Enter 複製第一筆,或關鍵字搜尋 → 點按複製;涵蓋全部 236 模板 + 1101 短句。全部/短句/模板 篩選;模板另出 Impression 鈕。與 index.html 共用 firebase-config(雲端登入載 templates+phrases)、templates.js/phrases.js(本地)。**獨立頁,不動 index.html 設計**;彼此以 header 連結互通。
 - ✅ **共用計數器(2026-08-08)**:固定在頁面最下方的計數列,三個分頁共用。移植自
-  `~/Claude_Work/中興計數器_移植參考.md`(基本 MRI 打勾 10 份 + 其餘 ±1/直接打字)。
+  `~/Claude_Work/中興計數器_移植參考.md`,但**與 Worknum 有一處刻意不同**:
+  Worknum 的「基本 MRI」是打勾一次填滿 10 份;這裡**前 10 份要一件件數**,
+  所以它也是 ±1 計數項,只多了 `n/10` 進度 + 數滿自動打勾變綠(打勾仍可當「直接填滿 10」的捷徑),
+  超過 10 也能繼續數。
   **跨裝置同步**:RTDB `voiceReport/counter/<日期>` 是真相(工作站數、回家看),localStorage 當離線快取。
   rules 只把 `counter` 子節點開放給共用帳號寫,voiceReport 其餘節點仍是 owner 才能寫。
   首次同步時若雲端空、本機有資料,會把本機推上去(不會被空快照洗掉)。有「📋 複製」輸出當日摘要,可貼進 Worknum。

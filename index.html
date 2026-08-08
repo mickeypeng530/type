@@ -113,8 +113,10 @@
   .xhItem label{margin:0; font-size:13px; color:var(--text);}
   .xhItem input[type=number]{width:58px; text-align:center; padding:6px; font-size:14px;}
   .xhItem button{padding:5px 10px; font-size:14px; line-height:1;}
-  .xhBase{display:flex; gap:6px; align-items:center; font-size:13px;
-    padding:5px 10px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
+  .xhBaseItem{padding:4px 9px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
+  .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
+  .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
+  .xhBaseItem.done .xhProg{color:var(--ok); font-weight:700;}
 </style>
 </head>
 <body>
@@ -355,11 +357,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.5"></script>
-<script src="phrases.js?v=20260808.5"></script>
-<script src="cx-templates.js?v=20260808.5"></script>
-<script src="matcher.js?v=20260808.5"></script>
-<script src="report-gen.js?v=20260808.5"></script>
+<script src="templates.js?v=20260808.6"></script>
+<script src="phrases.js?v=20260808.6"></script>
+<script src="cx-templates.js?v=20260808.6"></script>
+<script src="matcher.js?v=20260808.6"></script>
+<script src="report-gen.js?v=20260808.6"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -787,7 +789,9 @@ $("clearBtn").onclick = () => { $("dictation").value=""; $("result").value=""; $
 /* ══════════════════ 共用計數器(移植自 中興計數器_移植參考.md)══════════════════
    資料只存本機 localStorage(RTDB 的共用密碼帳號是唯讀;若多人共用密碼,雲端計數也會互相混到)。 */
 const XH_SCHEMA = [
-  { key:"mriBase", label:"基本 MRI", base:true },   // base:true → 打勾一次填滿,不用按 10 下
+  // ⚠ 與 Worknum 不同:這裡「基本 MRI」的前 10 份是**要一件件數**的,
+  //   所以它也是 ±1 計數項,只是多了 n/10 進度與滿額打勾(打勾=直接填滿 10 的捷徑)。
+  { key:"mriBase", label:"基本 MRI", base:true },
   { key:"mriC",    label:"額外 MRI 打藥" },
   { key:"mriNc",   label:"額外 MRI 不打藥" },
   { key:"ca",      label:"Ca" },
@@ -856,20 +860,31 @@ function xhRefreshSummary(){
   const day = XH_ALL[xhDate], n = xhTotalCount(day);
   $("xhSummary").textContent = xhBreakdownText(day);
   $("xhTotal").textContent = n ? `${n} 件` : "";
+  // 基本項的 n/10 進度與滿額打勾:只改文字/勾選狀態,不動 DOM 結構(打字中也安全)
+  for(const it of XH_SCHEMA){
+    if(!it.base) continue;
+    const v = xhCount(day, it.key), full = v >= XH_BASE_N;
+    const prog = $("xhProg_" + it.key), box = $("xhBox_" + it.key);
+    if(prog){ prog.textContent = `${v}/${XH_BASE_N}`; prog.closest(".xhItem").classList.toggle("done", full); }
+    if(box && box !== document.activeElement) box.checked = full;
+  }
 }
 function xhRenderPanel(){
   const day = XH_ALL[xhDate];
   const g = $("xhGrid"); g.innerHTML = "";
   for(const it of XH_SCHEMA){
-    if(it.base){                                         // 固定份數:打勾
+    const row = document.createElement("div");
+    row.className = "xhItem" + (it.base ? " xhBaseItem" : "");
+    if(it.base){                       // 基本項:一樣要數,但多打勾捷徑 + n/10 進度
       const v = xhCount(day, it.key);
-      const wrap = document.createElement("label"); wrap.className = "xhBase";
-      const box = document.createElement("input"); box.type = "checkbox"; box.checked = v > 0;
+      const box = document.createElement("input");
+      box.type = "checkbox"; box.id = "xhBox_" + it.key; box.tabIndex = -1;
+      box.checked = v >= XH_BASE_N;
+      box.title = `打勾 = 直接填滿 ${XH_BASE_N} 份`;
       box.onchange = () => { setXhCount(it.key, box.checked ? XH_BASE_N : 0); xhRenderPanel(); };
-      wrap.append(box, ` ${it.label} ${v && v !== XH_BASE_N ? v : XH_BASE_N} 份`);
-      g.appendChild(wrap); continue;
+      row.appendChild(box);
+      if(v >= XH_BASE_N) row.classList.add("done");
     }
-    const row = document.createElement("div"); row.className = "xhItem";
     const lab = document.createElement("label"); lab.textContent = it.label;
     const minus = document.createElement("button"); minus.className = "ghost"; minus.textContent = "−";
     const plus  = document.createElement("button"); plus.className  = "ghost"; plus.textContent  = "＋";
@@ -882,6 +897,12 @@ function xhRenderPanel(){
     input.onfocus = e => e.target.select();               // 點進去直接蓋掉
     input.oninput = e => { setXhCount(it.key, e.target.value, true); xhRefreshSummary(); };
     row.append(lab, minus, input, plus);
+    if(it.base){                                         // n/10 進度(數滿自動打勾)
+      const prog = document.createElement("span");
+      prog.className = "xhProg"; prog.id = "xhProg_" + it.key;
+      prog.textContent = `${xhCount(day, it.key)}/${XH_BASE_N}`;
+      row.appendChild(prog);
+    }
     g.appendChild(row);
   }
   xhRefreshSummary();
