@@ -13,7 +13,7 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;}
-  body{max-width:1180px; margin:0 auto; padding:12px 12px 60px;}
+  body{max-width:1360px; margin:0 auto; padding:12px 12px 60px;}
   h1{font-size:17px; margin:2px 0 10px; font-weight:600;}
   h1 small{color:var(--muted); font-weight:400; font-size:12px;}
   label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
@@ -53,19 +53,23 @@
   .tplbar button{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   .tplbar button.on{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600;}
   #cxBody{min-height:600px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;}
+  .tplbar.variants{margin:-4px 0 11px 0;}
+  .tplbar.variants button{font-size:12.5px; padding:6px 12px; border-radius:999px;}
   .extras{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
   .extras button{background:var(--panel2); color:var(--muted); border:1px dashed var(--line); font-size:12px; padding:6px 10px; font-weight:500;}
   .extras button:hover{color:var(--accent); border-color:var(--accent);}
 
   /* 結節表 */
   .tblwrap{overflow-x:auto; margin-top:10px;}
-  table.nod{border-collapse:collapse; width:100%; min-width:760px;}
+  table.nod{border-collapse:collapse; width:100%; min-width:620px;}
   table.nod th{font-size:11.5px; color:var(--muted); font-weight:600; text-align:left; padding:4px 5px;}
   table.nod td{padding:3px 5px;}
   table.nod input,table.nod select{padding:6px 7px; font-size:13.5px; border-radius:7px;}
   table.nod .no{color:var(--accent); font-family:ui-monospace,Consolas,monospace; font-weight:700; font-size:13px;}
-  .out{margin-top:12px;}
-  .out textarea{min-height:230px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;}
+  .gen2{display:grid; grid-template-columns:1fr 1.05fr; gap:16px; align-items:start;}
+  .genOut textarea{min-height:190px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;}
+  .genOut textarea.big{min-height:400px;}
+  @media (max-width:1040px){ .gen2{grid-template-columns:1fr;} .genIn{order:-1;} }
   .badge{display:inline-block; font-size:12px; border-radius:999px; padding:3px 11px;
     background:rgba(227,179,65,.13); border:1px solid rgba(227,179,65,.4); color:var(--hit);}
 
@@ -131,6 +135,7 @@
   <!-- ───────── Tab 1:中興模板 ───────── -->
   <section class="tab on" id="tab-cx">
     <div class="tplbar" id="cxBar"></div>
+    <div class="tplbar variants" id="cxVariants"></div>
 
     <!-- 一般模板:可編輯 textarea -->
     <div class="card" id="cxPlain">
@@ -147,89 +152,100 @@
       </div>
     </div>
 
-    <!-- LDCT 產生器 -->
+    <!-- LDCT 產生器:左=輸出可複製,右=輸入 -->
     <div class="card" id="cxLdct" style="display:none">
-      <div class="row">
-        <div><label>比較日期(空=無比較)</label><input type="date" id="ldDate"></div>
-        <div><label>Series No</label><input type="text" id="ldSI" value="4" style="width:70px"></div>
-        <div style="flex:1; min-width:260px"><label>Pleura</label>
-          <select id="ldPleura" style="width:100%">
-            <option value="0">No pleural effusion, thickening, or pneumothorax.</option>
-            <option value="1">Pleural thickening at bilateral lung apices.</option>
-          </select></div>
-      </div>
-      <div class="status" id="ldWarn"></div>
+      <div class="gen2">
+        <div class="genOut">
+          <div class="row"><label style="margin:0">Findings</label><span style="flex:1"></span>
+            <span id="ldRadsBadge"></span>
+            <button class="sm" id="ldCopyF">📋 複製</button></div>
+          <textarea id="ldFindings" class="big" spellcheck="false" placeholder="填好右邊欄位 → 按「產生報告」,結果出現在這裡"></textarea>
+          <div class="row" style="margin-top:10px"><label style="margin:0">Impression</label><span style="flex:1"></span>
+            <button class="sm" id="ldCopyI">📋 複製</button></div>
+          <textarea id="ldImpression" spellcheck="false"></textarea>
+          <div class="row" style="margin-top:10px">
+            <label style="margin:0">Image No</label>
+            <input type="text" id="ldImgNos" style="width:170px" readonly>
+            <button class="ghost sm" id="ldCopyN">📋</button>
+            <span class="status" id="ldStatus" style="margin:0"></span>
+          </div>
+        </div>
 
-      <div class="tblwrap">
-        <table class="nod">
-          <thead><tr>
-            <th style="width:28px"></th><th style="width:78px">大小 mm</th><th style="width:118px">位置</th>
-            <th style="width:158px">型態</th><th style="width:78px">肺葉</th>
-            <th style="width:118px">追蹤</th><th style="width:80px">Im No</th><th style="width:34px"></th>
-          </tr></thead>
-          <tbody id="ldRows"></tbody>
-        </table>
-      </div>
+        <div class="genIn">
+          <div class="row">
+            <div><label>比較日期(空=無比較)</label><input type="date" id="ldDate"></div>
+            <div><label>Series No</label><input type="text" id="ldSI" value="4" style="width:66px"></div>
+            <div style="flex:1; min-width:230px"><label>Pleura</label>
+              <select id="ldPleura" style="width:100%">
+                <option value="0">No pleural effusion, thickening, or pneumothorax.</option>
+                <option value="1">Pleural thickening at bilateral lung apices.</option>
+              </select></div>
+          </div>
+          <div class="status" id="ldWarn"></div>
 
-      <div class="row" style="margin-top:11px;">
-        <button id="ldGenPlain">產生報告(一般版)</button>
-        <button id="ldGenRads">產生(Lung-RADS)</button>
-        <button class="ghost sm" id="ldAdd">+ 新增結節</button>
-        <button class="ghost sm" id="ldClear">清空</button>
-        <span class="status" id="ldStatus"></span>
-      </div>
+          <div class="tblwrap">
+            <table class="nod">
+              <thead><tr>
+                <th style="width:24px"></th><th style="width:66px">大小 mm</th><th style="width:104px">位置</th>
+                <th style="width:136px">型態</th><th style="width:70px">肺葉</th>
+                <th style="width:104px">追蹤</th><th style="width:70px">Im No</th><th style="width:30px"></th>
+              </tr></thead>
+              <tbody id="ldRows"></tbody>
+            </table>
+          </div>
 
-      <div class="out" id="ldOut" style="display:none">
-        <div class="row"><label style="margin:0">Findings</label><span style="flex:1"></span>
-          <span id="ldRadsBadge"></span>
-          <button class="sm" id="ldCopyF">📋 複製 Findings</button></div>
-        <textarea id="ldFindings" spellcheck="false"></textarea>
-        <div class="row" style="margin-top:11px"><label style="margin:0">Impression</label><span style="flex:1"></span>
-          <button class="sm" id="ldCopyI">📋 複製 Impression</button></div>
-        <textarea id="ldImpression" spellcheck="false"></textarea>
-        <div class="row" style="margin-top:11px">
-          <label style="margin:0">Image No</label>
-          <input type="text" id="ldImgNos" style="width:210px" readonly>
-          <button class="ghost sm" id="ldCopyN">📋</button>
+          <div class="row" style="margin-top:11px;">
+            <button id="ldGenPlain">產生報告(一般版)</button>
+            <button id="ldGenRads">產生(Lung-RADS)</button>
+            <button class="ghost sm" id="ldAdd">+ 新增結節</button>
+            <button class="ghost sm" id="ldClear">清空</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Cardiac Ca 產生器 -->
+    <!-- Cardiac Ca 產生器:左=輸出可複製,右=輸入 -->
     <div class="card" id="cxCardiac" style="display:none">
-      <div class="row">
-        <div><label>LM</label><input type="text" id="caLM" class="caScore" style="width:80px"></div>
-        <div><label>LAD</label><input type="text" id="caLAD" class="caScore" style="width:80px"></div>
-        <div><label>LCX</label><input type="text" id="caCX" class="caScore" style="width:80px"></div>
-        <div><label>RCA</label><input type="text" id="caRCA" class="caScore" style="width:80px"></div>
-        <div><label>Total(自動加總,可覆寫)</label><input type="text" id="caTotal" style="width:110px"></div>
-      </div>
-      <div class="row" style="margin-top:9px">
-        <div style="min-width:250px"><label>心臟瓣膜</label>
-          <select id="caValve" style="width:100%">
-            <option value="0">The cardiac valves are not calcified.</option>
-            <option value="1">Calcification of aortic valve.</option>
-          </select></div>
-        <div style="min-width:250px"><label>升主動脈</label>
-          <select id="caAorta" style="width:100%">
-            <option value="0">The visible ascending aorta is normal.</option>
-            <option value="1">Dilatation of ascending aorta…</option>
-          </select></div>
-        <div id="caDiaWrap" style="display:none"><label>直徑 (cm)</label>
-          <input type="text" id="caDia" style="width:80px"></div>
-      </div>
-      <div class="row" style="margin-top:11px">
-        <button id="caGen">產生報告</button>
-        <button class="ghost sm" id="caClear">清空</button>
-        <span class="status" id="caStatus"></span>
-      </div>
-      <div class="out" id="caOut" style="display:none">
-        <div class="row"><label style="margin:0">Findings</label><span style="flex:1"></span>
-          <button class="sm" id="caCopyF">📋 複製 Findings</button></div>
-        <textarea id="caFindings" spellcheck="false" style="min-height:230px"></textarea>
-        <div class="row" style="margin-top:11px"><label style="margin:0">Conclusion</label><span style="flex:1"></span>
-          <button class="sm" id="caCopyC">📋 複製 Conclusion</button></div>
-        <textarea id="caConclusion" spellcheck="false" style="min-height:60px"></textarea>
+      <div class="gen2">
+        <div class="genOut">
+          <div class="row"><label style="margin:0">Findings</label><span style="flex:1"></span>
+            <button class="sm" id="caCopyF">📋 複製</button></div>
+          <textarea id="caFindings" class="big" spellcheck="false" placeholder="填好右邊欄位 → 按「產生報告」,結果出現在這裡"></textarea>
+          <div class="row" style="margin-top:10px"><label style="margin:0">Conclusion</label><span style="flex:1"></span>
+            <button class="sm" id="caCopyC">📋 複製</button></div>
+          <textarea id="caConclusion" spellcheck="false" style="min-height:70px"></textarea>
+          <div class="status" id="caStatus"></div>
+        </div>
+
+        <div class="genIn">
+          <div class="row">
+            <div><label>LM</label><input type="text" id="caLM" class="caScore" style="width:76px"></div>
+            <div><label>LAD</label><input type="text" id="caLAD" class="caScore" style="width:76px"></div>
+            <div><label>LCX</label><input type="text" id="caCX" class="caScore" style="width:76px"></div>
+            <div><label>RCA</label><input type="text" id="caRCA" class="caScore" style="width:76px"></div>
+            <div><label>Total(自動加總,可覆寫)</label><input type="text" id="caTotal" style="width:110px"></div>
+          </div>
+          <div class="row" style="margin-top:9px">
+            <div style="flex:1; min-width:240px"><label>心臟瓣膜</label>
+              <select id="caValve" style="width:100%">
+                <option value="0">The cardiac valves are not calcified.</option>
+                <option value="1">Calcification of aortic valve.</option>
+              </select></div>
+          </div>
+          <div class="row" style="margin-top:9px">
+            <div style="flex:1; min-width:240px"><label>升主動脈</label>
+              <select id="caAorta" style="width:100%">
+                <option value="0">The visible ascending aorta is normal.</option>
+                <option value="1">Dilatation of ascending aorta…</option>
+              </select></div>
+            <div id="caDiaWrap" style="display:none"><label>直徑 (cm)</label>
+              <input type="text" id="caDia" style="width:76px"></div>
+          </div>
+          <div class="row" style="margin-top:11px">
+            <button id="caGen">產生報告</button>
+            <button class="ghost sm" id="caClear">清空</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -304,11 +320,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=5"></script>
-<script src="phrases.js?v=5"></script>
-<script src="cx-templates.js?v=5"></script>
-<script src="matcher.js?v=5"></script>
-<script src="report-gen.js?v=5"></script>
+<script src="templates.js?v=6"></script>
+<script src="phrases.js?v=6"></script>
+<script src="cx-templates.js?v=6"></script>
+<script src="matcher.js?v=6"></script>
+<script src="report-gen.js?v=6"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -360,19 +376,43 @@ $("tabNav").addEventListener("click", e => {
 });
 
 /* ══════════════════ Tab 1:中興模板 ══════════════════ */
-let cxCur = null;
+let cxCur = null, cxExtrasCur = [];
+const cxGroups = () => {                      // [{group, name, generator, items:[…]}],保留檔案順序
+  const m = new Map();
+  for(const t of DATA.cx){
+    if(!m.has(t.group)) m.set(t.group, {group:t.group, name:t.groupName || t.name,
+                                        generator:t.generator, items:[]});
+    m.get(t.group).items.push(t);
+  }
+  return [...m.values()];
+};
 function cxInit(){
-  $("cxBar").innerHTML = DATA.cx.map(t =>
-    `<button data-id="${t.id}">${esc(t.name)}${t.generator?" ⚙️":""}</button>`).join("");
-  cxSelect(DATA.cx[0] && DATA.cx[0].id);
+  $("cxBar").innerHTML = cxGroups().map(g =>
+    `<button data-group="${esc(g.group)}">${esc(g.name)}${g.generator?" ⚙️":""}</button>`).join("");
+  const first = cxGroups()[0];
+  if(first) cxSelectGroup(first.group);
 }
 $("cxBar").addEventListener("click", e => {
-  const b = e.target.closest("button[data-id]"); if(b) cxSelect(b.dataset.id);
+  const b = e.target.closest("button[data-group]"); if(b) cxSelectGroup(b.dataset.group);
 });
+$("cxVariants").addEventListener("click", e => {
+  const b = e.target.closest("button[data-id]"); if(!b) return;
+  localStorage.setItem("vr_cxvar_" + b.dataset.group, b.dataset.id);
+  cxSelect(b.dataset.id);
+});
+function cxSelectGroup(group){
+  const g = cxGroups().find(x => x.group === group); if(!g) return;
+  const remembered = localStorage.getItem("vr_cxvar_" + group);
+  const pick = g.items.find(i => i.id === remembered) || g.items[0];
+  cxSelect(pick.id);
+}
 function cxSelect(id){
   const t = DATA.cx.find(x => x.id === id); if(!t) return;
   cxCur = t;
-  [...$("cxBar").children].forEach(b => b.classList.toggle("on", b.dataset.id === id));
+  [...$("cxBar").children].forEach(b => b.classList.toggle("on", b.dataset.group === t.group));
+  const sibs = DATA.cx.filter(x => x.group === t.group);
+  $("cxVariants").innerHTML = sibs.length > 1 ? sibs.map(v =>
+    `<button data-id="${esc(v.id)}" data-group="${esc(v.group)}" class="${v.id===id?"on":""}">${esc(v.variant||v.name)}</button>`).join("") : "";
   const isLdct = t.id === "cx-ldct", isCa = t.id === "cx-cardiac";
   $("cxLdct").style.display = isLdct ? "" : "none";
   $("cxCardiac").style.display = isCa ? "" : "none";
@@ -384,7 +424,11 @@ function cxSelect(id){
   try{ saved = JSON.parse(localStorage.getItem(LS.cxEdit + t.id) || "null"); }catch(_){}
   if(saved && saved.base !== t.body){ localStorage.removeItem(LS.cxEdit + t.id); saved = null; }
   $("cxBody").value = saved ? saved.text : t.body;
-  const ex = t.extras || [];
+  // extras 以 group 為單位合併(同標題只留一份),兩個變體都能插入同一組選配句
+  const ex = []; const seen = new Set();
+  for(const sib of DATA.cx.filter(x => x.group === t.group))
+    for(const e of (sib.extras || [])) if(!seen.has(e.title)){ seen.add(e.title); ex.push(e); }
+  cxExtrasCur = ex;
   $("cxExtrasWrap").style.display = ex.length ? "" : "none";
   $("cxExtras").innerHTML = ex.map((e,i) => `<button data-i="${i}">+ ${esc(e.title)}</button>`).join("");
 }
@@ -396,7 +440,7 @@ $("cxBody").addEventListener("input", () => {
 });
 $("cxExtras").addEventListener("click", e => {
   const b = e.target.closest("button[data-i]"); if(!b || !cxCur) return;
-  const txt = cxCur.extras[+b.dataset.i].text;
+  const txt = cxExtrasCur[+b.dataset.i].text;
   const ta = $("cxBody"), p = ta.selectionStart ?? ta.value.length;
   const ins = (p > 0 && ta.value[p-1] !== "\n" ? "\n" : "") + txt + "\n";
   ta.value = ta.value.slice(0,p) + ins + ta.value.slice(p);
@@ -442,7 +486,8 @@ function ldRead(){
   };
 }
 $("ldAdd").onclick = ldAddRow;
-$("ldClear").onclick = () => { ldReset(); $("ldOut").style.display="none"; $("ldWarn").textContent=""; };
+$("ldClear").onclick = () => { ldReset(); $("ldWarn").textContent="";
+  $("ldFindings").value=""; $("ldImpression").value=""; $("ldImgNos").value=""; $("ldRadsBadge").innerHTML=""; };
 $("ldRows").addEventListener("click", e => {
   if(e.target.closest(".ld-del")){ e.target.closest("tr").remove(); ldRenumber(); }
 });
@@ -458,7 +503,6 @@ function ldRun(mode){
   $("ldImpression").value = r.impression;
   $("ldImgNos").value = r.imageNos;
   $("ldRadsBadge").innerHTML = mode === "rads" ? `<span class="badge">Lung-RADS ${r.rads}</span>` : "";
-  $("ldOut").style.display = "";
   flash($("ldStatus"), mode === "rads" ? "已產生(Lung-RADS)✓" : "已產生(一般版)✓");
 }
 $("ldGenPlain").onclick = () => ldRun("plain");
@@ -483,14 +527,13 @@ $("caAorta").addEventListener("change", () => {
 $("caGen").onclick = () => {
   const r = caGenerate(caRead());
   $("caFindings").value = r.findings; $("caConclusion").value = r.conclusion;
-  $("caOut").style.display = "";
   flash($("caStatus"), "已產生 ✓");
 };
 $("caClear").onclick = () => {
   ["caLM","caLAD","caCX","caRCA","caTotal","caDia"].forEach(i => $(i).value = "");
   delete $("caTotal").dataset.manual;
   $("caValve").value = "0"; $("caAorta").value = "0"; $("caDiaWrap").style.display = "none";
-  $("caOut").style.display = "none";
+  $("caFindings").value=""; $("caConclusion").value="";
 };
 $("caCopyF").onclick = async () => flash($("caStatus"), (await copyText($("caFindings").value, $("caFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
 $("caCopyC").onclick = async () => flash($("caStatus"), (await copyText($("caConclusion").value, $("caConclusion"))) ? "Conclusion 已複製 ✓" : "複製失敗");

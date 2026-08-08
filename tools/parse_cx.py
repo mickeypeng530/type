@@ -22,15 +22,21 @@ SRC = VR_DIR.parent / "中興標準template.txt"
 # 主模板與「選配段」的分界標記(出現後的段落都視為 extras)
 END_MARKERS = ["* For further details, please see the descriptions above."]
 
-# 每塊的 id / 顯示名稱(依檔案順序;input=True 表示由產生器接手)
+# 每塊的中繼資料(依檔案順序)。
+#   generator=True → 由 report-gen.js 的輸入式產生器接手(不顯示 textarea)
+#   group/variant  → 同 group 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(如 MRCP 打不打藥)
+#                    沒填 group 就自成一組。extras 在 UI 上以 group 為單位合併。
 META = [
-    ("cx-brain-tof", "Brain + Neck TOF MRA", False),
-    ("cx-mrcp",      "MRCP + 上腹 MRI",       False),
-    ("cx-lspine",    "MRI 腰薦椎",            False),
-    ("cx-wspine",    "MRI 全脊椎",            False),
-    ("cx-wholebody", "MRI Whole Body",        False),
-    ("cx-ldct",      "Low Dose Chest CT",     True),
-    ("cx-cardiac",   "Cardiac CT (Ca score)", True),
+    dict(id="cx-brain-tof", name="Brain + Neck TOF MRA"),
+    dict(id="cx-mrcp-wo",   name="MRCP + 上腹 MRI", group="cx-mrcp",
+         groupName="MRCP + 上腹 MRI", variant="沒打藥 (without)"),
+    dict(id="cx-mrcp-wc",   name="MRCP + 上腹 MRI", group="cx-mrcp",
+         groupName="MRCP + 上腹 MRI", variant="有打藥 (with/without)"),
+    dict(id="cx-lspine",    name="MRI 腰薦椎"),
+    dict(id="cx-wspine",    name="MRI 全脊椎"),
+    dict(id="cx-wholebody", name="MRI Whole Body"),
+    dict(id="cx-ldct",      name="Low Dose Chest CT",     generator=True),
+    dict(id="cx-cardiac",   name="Cardiac CT (Ca score)", generator=True),
 ]
 
 
@@ -112,15 +118,21 @@ def main():
             print(f"  [{i}] {b.strip()[:60]}")
 
     out = []
-    for (tid, name, is_input), block in zip(META, blocks):
+    for meta, block in zip(META, blocks):
         if "@@FLEISCHNER@@" in block:
             body, fl = block.split("@@FLEISCHNER@@")
             body, extras = split_extras(body.strip("\n"))
             extras.append({"title": "Fleischner 2017 追蹤建議", "text": fl.strip("\n")})
         else:
             body, extras = split_extras(block)
-        out.append({"id": tid, "name": name, "generator": is_input,
-                    "body": body, "extras": extras})
+        out.append({
+            "id": meta["id"], "name": meta["name"],
+            "generator": meta.get("generator", False),
+            "group": meta.get("group", meta["id"]),
+            "groupName": meta.get("groupName", meta["name"]),
+            "variant": meta.get("variant", ""),
+            "body": body, "extras": extras,
+        })
 
     (HERE / "cx.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
     js = ["// 自動產生(tools/parse_cx.py)— 禁止手改;改 中興標準template.txt 後重跑。",

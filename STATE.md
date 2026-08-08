@@ -14,7 +14,10 @@
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
   設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
-- ✅ **中興模板頁**:7 個模板(Brain+TOF / MRCP上腹 / **MRI腰薦椎** / **MRI全脊椎** / 全身MRI / LDCT / Cardiac Ca)。
+- ✅ **中興模板頁**:7 組模板(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)。
+  **模板變體機制**:同 `group` 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(目前 MRCP 有「沒打藥 / 有打藥」兩版,
+  選擇記在 localStorage `vr_cxvar_*`);extras 以 group 為單位合併,所以 Dixon 對照表兩版都看得到。
+  LDCT / Cardiac Ca 版面 = **左邊輸出可複製、右邊輸入**(窄於 1040px 自動改上下排,輸入在上)。
   前 5 個可在網頁內編輯後複製(編輯暫存 localStorage `vr_cx_*`,存 `{text, base}`——**上游模板改版時 base 不符會自動丟棄舊暫存**,否則新模板永遠出不來),附「選配句」按鈕插入游標處。
   LDCT 與 Cardiac Ca 是**輸入式產生器**(移植自 `../0 HealthExamTemplete_stu2026.ahk`,見 `report-gen.js`)。
 - ✅ **Phase 1 / v2（完成）**：`index.html` 單檔 SPA。**核心 UX = 口述進文字框 → 按「產生報告」**。
