@@ -52,7 +52,7 @@
   .tplbar{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:11px;}
   .tplbar button{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   .tplbar button.on{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600;}
-  #cxBody{min-height:390px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;}
+  #cxBody{min-height:600px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;}
   .extras{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
   .extras button{background:var(--panel2); color:var(--muted); border:1px dashed var(--line); font-size:12px; padding:6px 10px; font-weight:500;}
   .extras button:hover{color:var(--accent); border-color:var(--accent);}
@@ -65,7 +65,7 @@
   table.nod input,table.nod select{padding:6px 7px; font-size:13.5px; border-radius:7px;}
   table.nod .no{color:var(--accent); font-family:ui-monospace,Consolas,monospace; font-weight:700; font-size:13px;}
   .out{margin-top:12px;}
-  .out textarea{min-height:150px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;}
+  .out textarea{min-height:230px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px;}
   .badge{display:inline-block; font-size:12px; border-radius:999px; padding:3px 11px;
     background:rgba(227,179,65,.13); border:1px solid rgba(227,179,65,.4); color:var(--hit);}
 
@@ -304,11 +304,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=4"></script>
-<script src="phrases.js?v=4"></script>
-<script src="cx-templates.js?v=4"></script>
-<script src="matcher.js?v=4"></script>
-<script src="report-gen.js?v=4"></script>
+<script src="templates.js?v=5"></script>
+<script src="phrases.js?v=5"></script>
+<script src="cx-templates.js?v=5"></script>
+<script src="matcher.js?v=5"></script>
+<script src="report-gen.js?v=5"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -379,13 +379,20 @@ function cxSelect(id){
   $("cxPlain").style.display = (isLdct || isCa) ? "none" : "";
   if(isLdct && !$("ldRows").children.length) ldReset();
   if(isLdct || isCa) return;
-  $("cxBody").value = localStorage.getItem(LS.cxEdit + t.id) ?? t.body;
+  // 暫存的編輯要綁「當時的原文」:上游模板改版後自動丟棄舊暫存,否則新模板永遠出不來
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(LS.cxEdit + t.id) || "null"); }catch(_){}
+  if(saved && saved.base !== t.body){ localStorage.removeItem(LS.cxEdit + t.id); saved = null; }
+  $("cxBody").value = saved ? saved.text : t.body;
   const ex = t.extras || [];
   $("cxExtrasWrap").style.display = ex.length ? "" : "none";
   $("cxExtras").innerHTML = ex.map((e,i) => `<button data-i="${i}">+ ${esc(e.title)}</button>`).join("");
 }
 $("cxBody").addEventListener("input", () => {
-  if(cxCur) localStorage.setItem(LS.cxEdit + cxCur.id, $("cxBody").value);
+  if(!cxCur) return;
+  if($("cxBody").value === cxCur.body) localStorage.removeItem(LS.cxEdit + cxCur.id);
+  else localStorage.setItem(LS.cxEdit + cxCur.id,
+        JSON.stringify({text: $("cxBody").value, base: cxCur.body}));
 });
 $("cxExtras").addEventListener("click", e => {
   const b = e.target.closest("button[data-i]"); if(!b || !cxCur) return;

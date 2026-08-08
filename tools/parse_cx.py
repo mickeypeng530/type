@@ -26,7 +26,8 @@ END_MARKERS = ["* For further details, please see the descriptions above."]
 META = [
     ("cx-brain-tof", "Brain + Neck TOF MRA", False),
     ("cx-mrcp",      "MRCP + 上腹 MRI",       False),
-    ("cx-lspine",    "MRI Lumbar Spine",      False),
+    ("cx-lspine",    "MRI 腰薦椎",            False),
+    ("cx-wspine",    "MRI 全脊椎",            False),
     ("cx-wholebody", "MRI Whole Body",        False),
     ("cx-ldct",      "Low Dose Chest CT",     True),
     ("cx-cardiac",   "Cardiac CT (Ca score)", True),
