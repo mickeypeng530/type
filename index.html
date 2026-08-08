@@ -108,21 +108,18 @@
   #xhTotal{font-size:14px; color:var(--accent);}
   #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
   #xhBar.open #xhPanel{display:block;}
-  /* 六個項目固定排成 3 欄 × 2 列;欄寬吃內容(不撐滿),窄螢幕才降成 2 欄 / 1 欄 */
-  .xhGrid{display:grid; grid-template-columns:repeat(3, auto); justify-content:start;
-    gap:7px 20px; align-items:center;}
-  /* 三欄實際只需 ~700px,斷點要卡在真的塞不下時才降級(設太早會多長出一列) */
-  @media (max-width:720px){ .xhGrid{grid-template-columns:repeat(2, auto);} }
-  @media (max-width:470px){ .xhGrid{grid-template-columns:auto;} }
-  .xhItem{display:flex; gap:4px; align-items:center; font-size:13px;}
-  .xhItem label{margin:0; font-size:13px; color:var(--text); white-space:nowrap;}
+  /* 六個項目排成一行(第二行是下面的摘要列)。尺寸壓緊以塞進單行;
+     真的塞不下才 wrap,不硬性斷欄。 */
+  .xhGrid{display:flex; flex-wrap:wrap; gap:6px 11px; align-items:center;}
+  .xhItem{display:flex; gap:3px; align-items:center; font-size:12.5px;}
+  .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
-  .xhItem input[type=number]{width:44px; text-align:center; padding:5px 2px; font-size:14px;
-    appearance:textfield; -moz-appearance:textfield;}
+  .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
+    border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
   .xhItem input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-  .xhItem button{padding:4px 9px; font-size:14px; line-height:1;}
-  .xhBaseItem{padding:3px 8px; border:1px solid var(--line); border-radius:9px; background:var(--panel2);}
+  .xhItem button{padding:3px 8px; font-size:13.5px; line-height:1; border-radius:7px;}
+  .xhBaseItem{padding:2px 7px; border:1px solid var(--line); border-radius:8px; background:var(--panel2);}
   .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
   .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
   .xhBaseItem.done .xhProg{color:var(--ok); font-weight:700;}
@@ -367,11 +364,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.10"></script>
-<script src="phrases.js?v=20260808.10"></script>
-<script src="cx-templates.js?v=20260808.10"></script>
-<script src="matcher.js?v=20260808.10"></script>
-<script src="report-gen.js?v=20260808.10"></script>
+<script src="templates.js?v=20260808.12"></script>
+<script src="phrases.js?v=20260808.12"></script>
+<script src="cx-templates.js?v=20260808.12"></script>
+<script src="matcher.js?v=20260808.12"></script>
+<script src="report-gen.js?v=20260808.12"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -802,8 +799,9 @@ const XH_SCHEMA = [
   // ⚠ 與 Worknum 不同:這裡「基本 MRI」的前 10 份是**要一件件數**的,
   //   所以它也是 ±1 計數項,只是多了 n/10 進度與滿額打勾(打勾=直接填滿 10 的捷徑)。
   { key:"mriBase", label:"基本 MRI", base:true },
-  { key:"mriC",    label:"額外 MRI 打藥" },
-  { key:"mriNc",   label:"額外 MRI 不打藥" },
+  // short = 畫面上顯示的短標籤(為了擠進單行);label 仍是摘要/複製文字用的完整名稱
+  { key:"mriC",    label:"額外 MRI 打藥",   short:"MRI 打藥" },
+  { key:"mriNc",   label:"額外 MRI 不打藥", short:"MRI 不打藥" },
   { key:"ca",      label:"Ca" },
   { key:"ctC",     label:"CT 打藥" },
   { key:"ctNc",    label:"CT 不打藥" },
@@ -895,7 +893,9 @@ function xhRenderPanel(){
       row.appendChild(box);
       if(v >= XH_BASE_N) row.classList.add("done");
     }
-    const lab = document.createElement("label"); lab.textContent = it.label;
+    const lab = document.createElement("label");
+    lab.textContent = it.short || it.label;
+    if(it.short) lab.title = it.label;                   // 滑過看得到完整名稱
     const minus = document.createElement("button"); minus.className = "ghost"; minus.textContent = "−";
     const plus  = document.createElement("button"); plus.className  = "ghost"; plus.textContent  = "＋";
     minus.tabIndex = plus.tabIndex = -1;                 // Tab 只在數字格之間跳
