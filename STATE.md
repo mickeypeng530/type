@@ -104,6 +104,10 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **上傳腳本一律只寫自己的子節點,不准 `set()` 整個 `voiceReport`**:2026-08-09 `upload_rtdb.py` 用
+  `db.reference("voiceReport").set({templates,phrases,cxTemplates,meta})` 整份取代,把後來才加的
+  `anatomy`(解剖切片)與 `counter`(計數器)一起清空。症狀=線上登入後解剖卡完全不出現(index 讀到空)。
+  切片可從原圖重上傳,計數器只能靠瀏覽器 localStorage 首次同步回填(`xhApplyRemote` 的 first-snap 邏輯)。
 - **計數器的 `oninput` 絕不能重繪 DOM**:重建 input 會讓正在打字的格子失去焦點(症狀=「只能按 ±1、不能直接打數字」)。
   拆兩層:`xhRenderPanel()` 可動 DOM(換日/±1),`xhRefreshSummary()` 只改 textContent(打字中)。
 - **eval.html 目前是合成測試集**，數字只證明機制通、不代表真實口述表現;拿到真實測資要整批替換再看分數。
