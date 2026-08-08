@@ -27,16 +27,16 @@ END_MARKERS = ["* For further details, please see the descriptions above."]
 #   group/variant  → 同 group 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(如 MRCP 打不打藥)
 #                    沒填 group 就自成一組。extras 在 UI 上以 group 為單位合併。
 META = [
-    dict(id="cx-brain-tof", name="Brain + Neck TOF MRA"),
-    dict(id="cx-mrcp-wo",   name="MRCP + 上腹 MRI", group="cx-mrcp",
-         groupName="MRCP + 上腹 MRI", variant="沒打藥 (without)"),
-    dict(id="cx-mrcp-wc",   name="MRCP + 上腹 MRI", group="cx-mrcp",
-         groupName="MRCP + 上腹 MRI", variant="有打藥 (with/without)"),
-    dict(id="cx-lspine",    name="MRI 腰薦椎"),
-    dict(id="cx-wspine",    name="MRI 全脊椎"),
-    dict(id="cx-wholebody", name="MRI Whole Body"),
-    dict(id="cx-ldct",      name="Low Dose Chest CT",     generator=True),
-    dict(id="cx-cardiac",   name="Cardiac CT (Ca score)", generator=True),
+    dict(id="cx-brain-tof", name="MRI brain"),
+    dict(id="cx-mrcp-wo",   name="MRI abdomen", group="cx-mrcp",
+         groupName="MRI abdomen", variant="沒打藥 (without)"),
+    dict(id="cx-mrcp-wc",   name="MRI abdomen", group="cx-mrcp",
+         groupName="MRI abdomen", variant="有打藥 (with/without)"),
+    dict(id="cx-lspine",    name="MRI L spine"),
+    dict(id="cx-wspine",    name="MRI whole spine"),
+    dict(id="cx-wholebody", name="MRI whole body"),
+    dict(id="cx-ldct",      name="LDCT",     generator=True),
+    dict(id="cx-cardiac",   name="Ca score", generator=True),
 ]
 
 # ── 肌肉骨骼 MRI:沿用 AHK 私人模板庫(tools/library.json,由 parse_ahk.py 產生),
@@ -45,23 +45,23 @@ META = [
 #    split    = 正文佔前幾個「空行分隔的段落」;其後的 "> " 句子各成一個選配句(0 = 全部當正文)
 #    anatomy  = 這個部位對應的解剖切片系列(顯示在模板下方,資料在 RTDB)
 MSK = [
-    dict(group="cx-msk-shoulder", groupName="MRI 肩關節", anatomy=["shoulder-axial"], items=[
+    dict(group="cx-msk-shoulder", groupName="MRI shoulder", anatomy=["shoulder-axial"], items=[
         dict(id="cx-msk-shoulder-1", src="mrsho", variant=""),
     ]),
-    dict(group="cx-msk-knee", groupName="MRI 膝關節", anatomy=["knee-axial"], items=[
+    dict(group="cx-msk-knee", groupName="MRI knee", anatomy=["knee-axial"], items=[
         dict(id="cx-msk-knee-1", src="mrkn", variant="", split=2),
     ]),
-    dict(group="cx-msk-hip", groupName="MRI 髖關節", anatomy=["hip-axial"], items=[
+    dict(group="cx-msk-hip", groupName="MRI hip", anatomy=["hip-axial"], items=[
         dict(id="cx-msk-hip-1", src="mrh", variant=""),
     ]),
-    dict(group="cx-msk-elbow", groupName="MRI 肘關節", anatomy=["elbow-axial"], items=[
+    dict(group="cx-msk-elbow", groupName="MRI elbow", anatomy=["elbow-axial"], items=[
         dict(id="cx-msk-elbow-1", src="mrel", variant="", split=1),
     ]),
-    dict(group="cx-msk-wrist", groupName="MRI 腕關節",
+    dict(group="cx-msk-wrist", groupName="MRI wrist",
          anatomy=["wrist-axial", "wrist-coronal"], items=[
         dict(id="cx-msk-wrist-1", src="mrwr", variant=""),
     ]),
-    dict(group="cx-msk-ankle", groupName="MRI 踝關節", anatomy=["ankle-axial"], items=[
+    dict(group="cx-msk-ankle", groupName="MRI ankle", anatomy=["ankle-axial"], items=[
         dict(id="cx-msk-ankle-1", src="mran", variant=""),
     ]),
 ]
@@ -82,6 +82,7 @@ def msk_entries():
                 print(f"⚠️ library.json 沒有 {it['src']},跳過")
                 continue
             body, extras = _msk_split(t["findings"].rstrip(), it.get("split", 0))
+            body += "\n\nImpression:"      # AHK 原文沒有 impression 欄,報告一律要留這段
             out.append({
                 "id": it["id"], "name": g["groupName"], "generator": False,
                 "group": g["group"], "groupName": g["groupName"],

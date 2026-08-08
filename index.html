@@ -52,7 +52,12 @@
   .tplbar{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:11px;}
   .tplbar button{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500;}
   .tplbar button.on{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600;}
-  #cxBody{min-height:600px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;}
+  /* 模板列 13 顆要擠成一排:不換行,窄螢幕才橫向捲(頁面本身永遠不橫向捲) */
+  #cxBar{flex-wrap:nowrap; gap:5px; overflow-x:auto; scrollbar-width:thin; padding-bottom:2px;}
+  #cxBar button{white-space:nowrap; flex:0 0 auto; font-size:12.5px; padding:8px 10px; border-radius:9px;}
+  /* 高度由 cxAutoHeight() 依內容行數決定(MSK 模板短、全身 MRI 長),這裡只給下限 */
+  #cxBody{min-height:200px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13.5px;
+    line-height:1.55; resize:vertical;}
   .tplbar.variants{margin:-4px 0 11px 0;}
   .tplbar.variants button{font-size:12.5px; padding:6px 12px; border-radius:999px;}
   .extras{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
@@ -402,12 +407,12 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260809.1"></script>
-<script src="phrases.js?v=20260809.1"></script>
-<script src="cx-templates.js?v=20260809.1"></script>
-<script src="matcher.js?v=20260809.1"></script>
-<script src="report-gen.js?v=20260809.1"></script>
-<script src="anatomy.js?v=20260809.1"></script>
+<script src="templates.js?v=20260809.3"></script>
+<script src="phrases.js?v=20260809.3"></script>
+<script src="cx-templates.js?v=20260809.3"></script>
+<script src="matcher.js?v=20260809.3"></script>
+<script src="report-gen.js?v=20260809.3"></script>
+<script src="anatomy.js?v=20260809.3"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -519,6 +524,7 @@ function cxSelect(id){
   try{ saved = JSON.parse(localStorage.getItem(LS.cxEdit + t.id) || "null"); }catch(_){}
   if(saved && saved.base !== t.body){ localStorage.removeItem(LS.cxEdit + t.id); saved = null; }
   $("cxBody").value = saved ? saved.text : t.body;
+  cxAutoHeight();
   // extras 以 group 為單位合併(同標題只留一份),兩個變體都能插入同一組選配句
   const ex = []; const seen = new Set();
   for(const sib of DATA.cx.filter(x => x.group === t.group))
@@ -527,7 +533,14 @@ function cxSelect(id){
   $("cxExtrasWrap").style.display = ex.length ? "" : "none";
   $("cxExtras").innerHTML = ex.map((e,i) => `<button data-i="${i}">+ ${esc(e.title)}</button>`).join("");
 }
+// 欄位高度跟著內容走:短模板(MSK)不留一大片空白,長模板(全身 MRI)也不會擠成小格
+function cxAutoHeight(){
+  const ta = $("cxBody");
+  ta.style.height = "auto";
+  ta.style.height = Math.max(200, Math.min(ta.scrollHeight + 4, 760)) + "px";
+}
 $("cxBody").addEventListener("input", () => {
+  cxAutoHeight();
   if(!cxCur) return;
   if($("cxBody").value === cxCur.body) localStorage.removeItem(LS.cxEdit + cxCur.id);
   else localStorage.setItem(LS.cxEdit + cxCur.id,
