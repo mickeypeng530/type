@@ -104,7 +104,7 @@
 
 <!-- ══════════ 登入(按鈕必須是靜態 HTML — iOS/popup 保險) ══════════ -->
 <div id="loginGate">
-  <h1 style="font-size:20px">VoiceReport 🩻</h1>
+  <h1 style="font-size:20px">VoiceReport 🩻 <small id="loginVer" style="color:var(--muted); font-size:12px; font-weight:400"></small></h1>
   <div class="card">
     <label>共用密碼</label>
     <input type="password" id="pw" placeholder="••••••" autocomplete="current-password">
@@ -322,15 +322,20 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=7"></script>
-<script src="phrases.js?v=7"></script>
-<script src="cx-templates.js?v=7"></script>
-<script src="matcher.js?v=7"></script>
-<script src="report-gen.js?v=7"></script>
+<script src="templates.js?v=8"></script>
+<script src="phrases.js?v=8"></script>
+<script src="cx-templates.js?v=8"></script>
+<script src="matcher.js?v=8"></script>
+<script src="report-gen.js?v=8"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
 const $ = id => document.getElementById(id);
+// 版號直接從 script 的 ?v= 讀,永遠等於實際載入的版本(改 ?v= 就好,不用兩處同步)
+const APP_VERSION = (() => {
+  const m = [...document.scripts].map(s => s.src).join(" ").match(/[?&]v=([\w.]+)/);
+  return m ? "v" + m[1] : "";
+})();
 const DATA = { templates: [], phrases: [], cx: [] };
 const LS = { key:"vr_openai_key", mode:"vr_mode", base:"vr_api_base", model:"vr_api_model",
              tab:"vr_tab", pref:"vr_pref", cxEdit:"vr_cx_" };
@@ -359,7 +364,7 @@ function boot(src, d){
   if(missing.length) throw new Error("程式檔沒載齊(" + missing.join(", ") + ")— 請重新整理頁面");
   DATA.templates = d.templates || []; DATA.phrases = d.phrases || []; DATA.cx = d.cx || [];
   vrBuildIndex(DATA.templates);
-  $("srcInfo").textContent = `${DATA.templates.length} 模板 · ${DATA.phrases.length} 短句 ${src==="cloud"?"☁️":"💻"}`;
+  $("srcInfo").textContent = `${APP_VERSION} · 中興 ${cxGroups().length} · 模板 ${DATA.templates.length} · 短句 ${DATA.phrases.length} ${src==="cloud"?"☁️":"💻"}`;
   $("loginGate").style.display = "none";
   $("app").style.display = "";
   cxInit(); snipInit(); voiceInit();
@@ -739,6 +744,8 @@ $("copyImpBtn").onclick = async () => { const ok = await copyText($("impression"
   setVStatus(ok ? "Impression 已複製 ✓" : "複製失敗", ok ? "ok" : "err"); };
 $("clearBtn").onclick = () => { $("dictation").value=""; $("result").value=""; $("impression").value="";
   $("impCard").style.display="none"; $("matched").innerHTML=""; currentTpl=null; applyMode(); };
+
+$("loginVer").textContent = APP_VERSION;
 
 /* ══════════════════ 本機模式(有資料檔就直接開,不碰 Firebase)══════════════════ */
 if(typeof TEMPLATES !== "undefined" && typeof CX_TEMPLATES !== "undefined"){

@@ -10,6 +10,8 @@
 - ✅ **v4 三頁籤單頁（2026-08-08）**:`index.html` 一頁三 tab、只登入一次:
   **📋 中興模板 / ⌨️ 短句 / 🎤 口說**(分頁選擇記在 localStorage `vr_tab`)。
   舊 `snippets.html` 改成轉址頁(保留書籤)。
+  **版號**:script 標籤的 `?v=N` 是唯一來源,標題列與登入畫面的版號由 JS 從 script src 讀出來顯示
+  (`APP_VERSION`),所以只要改 `?v=` 一處,畫面版號自動同步、永遠等於實際載入的版本。
 - ✅ **登入改 retake 模式**:共用密碼(Firebase Email/Password 帳號 `viewer@voicereport.app`,
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
