@@ -17,7 +17,9 @@
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
   設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
-- ✅ **中興模板頁**:7 組模板(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)。
+- ✅ **中興模板頁**:13 組模板 = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
+  + **MSK MRI 6 組**(肩 / 膝 / 髖 / 肘 / 腕 / 踝,2026-08-09 加)。MSK 那 6 組**不寫在 `中興標準template.txt`**,
+  而是 `tools/parse_cx.py` 的 `MSK` 清單指名從 `tools/library.json`(AHK 模板庫)撈,避免同一份文字兩處各改一半。
   **模板變體機制**:同 `group` 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(目前 MRCP 有「沒打藥 / 有打藥」兩版,
   選擇記在 localStorage `vr_cxvar_*`);extras 以 group 為單位合併,所以 Dixon 對照表兩版都看得到。
   LDCT / Cardiac Ca 版面 = **左邊輸出可複製、右邊輸入**(窄於 1040px 自動改上下排,輸入在上)。
@@ -61,10 +63,17 @@
   - `firebase-init.js` — Firebase config + `OWNER_UID` / `SHARED_UID` / `SHARED_EMAIL`(取代舊 firebase-config.js)
   - `matcher.js` — 口說分頁的選模板計分器
   - `report-gen.js` — 中興分頁的 LDCT / Cardiac Ca 產生器(移植自 health AHK)
+  - `anatomy.js` — 斷層解剖對照檢視器(掛在中興分頁,只在該模板有 `anatomy` 時出現)
   - `templates.js` / `phrases.js` / `cx-templates.js` — 本機資料檔(gitignored,線上走 RTDB)
+  - `anatomy/`(gitignored)— 切片影像本機副本 + `index.json`,線上走 RTDB
   - `snippets.html` — 轉址頁(舊書籤相容)
-- **中興模板**:source of truth = `../中興標準template.txt`,由 `tools/parse_cx.py` 解析成
-  `{id,name,body,extras[],generator}`;`generator:true` 的兩個(LDCT/Cardiac)由 report-gen.js 接手。
+- **中興模板**:source of truth = `../中興標準template.txt`(中興 7 組)+ `tools/library.json`(MSK 6 組),
+  由 `tools/parse_cx.py` 解析成 `{id,name,body,extras[],generator,group,variant,anatomy[]}`;
+  `generator:true` 的兩個(LDCT/Cardiac)由 report-gen.js 接手。
+- **斷層解剖對照**:影像來自 mrimaster.com(**© 版權他人,僅個人檢索**)→ `tools/anatomy_upload.py`
+  壓成 JPEG 存 RTDB `voiceReport/anatomy/{index,data}`,**絕不進 public repo**(`.gitignore` 擋 `anatomy/` 與該腳本)。
+  前端逐張讀(前後各預抓 2 張),模板的 `anatomy:[series]` 決定顯示哪組;腕關節有 axial/coronal 兩組。
+  目前 7 組:knee 35 / shoulder 19 / hip 22 / elbow 18 / wrist-axial 14 / wrist-coronal 8 / ankle 35。
 - 單檔 `voice-report/index.html`，零 build、可丟 GitHub Pages。
 - **STT = OS 系統聽寫**（app 本身不做 STT）：使用者點①口述 `textarea`，用 iOS 鍵盤 🎤 或 Windows Win+H 把語音轉成文字。免費、穩。
 - **填模板**：`gpt-4o-mini`，`response_format=json_object`，回 `{templateId, report}`。核心邏輯在 `buildSystemPrompt()`。輸入是①口述框的純文字。
@@ -103,6 +112,10 @@
 - **改模板 → 改 `../0 Peng Rclick.ahk`，然後 `python tools/upload_rtdb.py`(= 解析 + 上雲 + 驗證,一條命令)**。需 `service-account.json` 在 voice-report/(gitignored;Console → 服務帳戶 → 產生私密金鑰)。只想重生本地檔不上雲 → `python tools/parse_ahk.py`。瀏覽器手動備援 → `admin.html`。
 - **改中興模板 → 改 `../中興標準template.txt`,然後同樣跑 `python tools/upload_rtdb.py`**
   (它會同時跑 parse_ahk.py 與 parse_cx.py 再上雲)。
+- **加/換 MSK 模板 → 改 `tools/parse_cx.py` 的 `MSK` 清單**(`src` = library.json 的模板 id、
+  `split` = 正文佔前幾段、`anatomy` = 對應切片系列),再跑 `upload_rtdb.py`。
+- **加一組解剖切片 → `python tools/anatomy_upload.py <資料夾> <series-id> "顯示名稱"`**
+  (自動壓縮 + 上 RTDB + 寫本機副本/索引),再把 series-id 填進 `parse_cx.py` 的 `anatomy=[...]`。
 - **改完任何前端檔要部署前先跑 `python tools/bump_version.py`**(升版號 + 破快取)。
 - 改 LDCT / Ca 產生器的文字或邏輯 → `report-gen.js`(選項常數在檔案最上方,與 AHK 下拉原文一致)。
 - 抽查解析結果 → 瀏覽器開 `tools/review.html`（可過濾）。

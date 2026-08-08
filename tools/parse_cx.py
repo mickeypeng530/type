@@ -39,6 +39,82 @@ META = [
     dict(id="cx-cardiac",   name="Cardiac CT (Ca score)", generator=True),
 ]
 
+# ── 肌肉骨骼 MRI:沿用 AHK 私人模板庫(tools/library.json,由 parse_ahk.py 產生),
+#    不重抄一份到 中興標準template.txt,避免兩處各改一半而漂移。
+#    src      = library.json 的模板 id
+#    split    = 正文佔前幾個「空行分隔的段落」;其後的 "> " 句子各成一個選配句(0 = 全部當正文)
+#    anatomy  = 這個部位對應的解剖切片系列(顯示在模板下方,資料在 RTDB)
+MSK = [
+    dict(group="cx-msk-shoulder", groupName="MRI 肩關節", anatomy=["shoulder-axial"], items=[
+        dict(id="cx-msk-shoulder-1", src="mrsho",  variant="標準"),
+        dict(id="cx-msk-shoulder-2", src="mrsho3", variant="詳細版", split=2),
+    ]),
+    dict(group="cx-msk-knee", groupName="MRI 膝關節", anatomy=["knee-axial"], items=[
+        dict(id="cx-msk-knee-1", src="mrkn", variant="", split=2),
+    ]),
+    dict(group="cx-msk-hip", groupName="MRI 髖關節", anatomy=["hip-axial"], items=[
+        dict(id="cx-msk-hip-1", src="mrh",  variant="沒打藥 (without)"),
+        dict(id="cx-msk-hip-2", src="mr2h", variant="有打藥 (with/without)"),
+        dict(id="cx-msk-hip-3", src="mrf",  variant="大腿 / 股骨"),
+    ]),
+    dict(group="cx-msk-elbow", groupName="MRI 肘關節", anatomy=["elbow-axial"], items=[
+        dict(id="cx-msk-elbow-1", src="mrel",  variant="條列式", split=1),
+        dict(id="cx-msk-elbow-2", src="mrel1", variant="編號式"),
+    ]),
+    dict(group="cx-msk-wrist", groupName="MRI 腕關節",
+         anatomy=["wrist-axial", "wrist-coronal"], items=[
+        dict(id="cx-msk-wrist-1", src="mrwr", variant=""),
+    ]),
+    dict(group="cx-msk-ankle", groupName="MRI 踝關節", anatomy=["ankle-axial"], items=[
+        dict(id="cx-msk-ankle-1", src="mran", variant=""),
+    ]),
+]
+
+
+def msk_entries():
+    """把 library.json 裡的 MSK MRI 模板轉成中興頁用的結構。"""
+    lib_file = HERE / "library.json"
+    if not lib_file.exists():
+        print("⚠️ 找不到 tools/library.json(先跑 parse_ahk.py),這次跳過 MSK 模板")
+        return []
+    lib = {t["id"]: t for t in json.loads(lib_file.read_text(encoding="utf-8"))["templates"]}
+    out = []
+    for g in MSK:
+        for it in g["items"]:
+            t = lib.get(it["src"])
+            if not t:
+                print(f"⚠️ library.json 沒有 {it['src']},跳過")
+                continue
+            body, extras = _msk_split(t["findings"].rstrip(), it.get("split", 0))
+            out.append({
+                "id": it["id"], "name": g["groupName"], "generator": False,
+                "group": g["group"], "groupName": g["groupName"],
+                "variant": it.get("variant", ""),
+                "anatomy": g["anatomy"],
+                "body": body, "extras": extras,
+            })
+    return out
+
+
+def _msk_split(text, n_para):
+    """前 n_para 個段落當正文,其後的 '> ' 句子各自成為可插入的選配句。"""
+    if not n_para:
+        return text, []
+    paras = re.split(r"\n\s*\n", text)
+    body = "\n\n".join(paras[:n_para]).rstrip()
+    extras = []
+    for para in paras[n_para:]:
+        cur = []
+        for line in para.split("\n"):
+            if line.lstrip().startswith(">") and cur:
+                extras.append({"title": _title("\n".join(cur)), "text": "\n".join(cur).strip()})
+                cur = [line]
+            else:
+                cur.append(line)
+        if any(l.strip() for l in cur):
+            extras.append({"title": _title("\n".join(cur)), "text": "\n".join(cur).strip()})
+    return body, extras
+
 
 def split_blocks(text):
     lines = text.replace("\r\n", "\n").split("\n")
@@ -131,8 +207,11 @@ def main():
             "group": meta.get("group", meta["id"]),
             "groupName": meta.get("groupName", meta["name"]),
             "variant": meta.get("variant", ""),
+            "anatomy": meta.get("anatomy", []),
             "body": body, "extras": extras,
         })
+
+    out += msk_entries()
 
     (HERE / "cx.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
     js = ["// 自動產生(tools/parse_cx.py)— 禁止手改;改 中興標準template.txt 後重跑。",

@@ -59,6 +59,19 @@
   .extras button{background:var(--panel2); color:var(--muted); border:1px dashed var(--line); font-size:12px; padding:6px 10px; font-weight:500;}
   .extras button:hover{color:var(--accent); border-color:var(--accent);}
 
+  /* 斷層解剖對照 */
+  .anatStage{position:relative; margin-top:10px; background:#000; border:1px solid var(--line);
+    border-radius:11px; overflow:hidden; height:min(66vh,620px);
+    display:flex; align-items:center; justify-content:center; user-select:none;}
+  .anatStage img{max-width:100%; max-height:100%; object-fit:contain; transform-origin:center center;
+    transition:transform .08s linear; -webkit-user-drag:none;}
+  .anatStage:fullscreen{height:100vh; border-radius:0;}
+  .anatHud{position:absolute; right:10px; bottom:9px; background:rgba(0,0,0,.6); color:#fff;
+    font-size:12.5px; font-family:ui-monospace,Consolas,monospace; padding:3px 9px; border-radius:999px;
+    pointer-events:none;}
+  .anatCtl{margin-top:9px; align-items:center;}
+  .anatCtl input[type=range]{flex:1; min-width:120px; accent-color:var(--accent);}
+
   /* 結節表 */
   .tblwrap{overflow-x:auto; margin-top:10px;}
   table.nod{border-collapse:collapse; width:100%; min-width:620px;}
@@ -174,6 +187,31 @@
       <div id="cxExtrasWrap" style="display:none">
         <div class="hint" style="margin-top:11px">選配句(點一下插入游標處):</div>
         <div class="extras" id="cxExtras"></div>
+      </div>
+    </div>
+
+    <!-- 斷層解剖對照:只在該部位有切片時出現(影像存私有 RTDB,不進 repo) -->
+    <div class="card" id="cxAnat" style="display:none">
+      <div class="row" style="align-items:center">
+        <label style="margin:0">🦴 斷層解剖對照</label>
+        <div class="tplbar variants" id="anatBar" style="margin:0"></div>
+        <span style="flex:1"></span>
+        <span class="hint">滾輪換切片 · Ctrl+滾輪縮放 · ←→↑↓ 也可以</span>
+      </div>
+      <div class="anatStage" id="anatStage">
+        <img id="anatImg" alt="解剖切片" draggable="false">
+        <div class="anatHud" id="anatCount"></div>
+      </div>
+      <div class="row anatCtl">
+        <button class="ghost sm" id="anatPrev">◀</button>
+        <input type="range" id="anatSlider" min="1" max="1" value="1">
+        <button class="ghost sm" id="anatNext">▶</button>
+        <button class="ghost sm" id="anatZoomOut">−</button>
+        <span class="hint" id="anatZoomLabel" style="min-width:42px; text-align:center">100%</span>
+        <button class="ghost sm" id="anatZoomIn">＋</button>
+        <button class="ghost sm" id="anatZoomReset">↺</button>
+        <button class="ghost sm" id="anatFull">⛶ 全螢幕</button>
+        <span class="status" id="anatStatus" style="margin:0"></span>
       </div>
     </div>
 
@@ -364,11 +402,12 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.13"></script>
-<script src="phrases.js?v=20260808.13"></script>
-<script src="cx-templates.js?v=20260808.13"></script>
-<script src="matcher.js?v=20260808.13"></script>
-<script src="report-gen.js?v=20260808.13"></script>
+<script src="templates.js?v=20260809.1"></script>
+<script src="phrases.js?v=20260809.1"></script>
+<script src="cx-templates.js?v=20260809.1"></script>
+<script src="matcher.js?v=20260809.1"></script>
+<script src="report-gen.js?v=20260809.1"></script>
+<script src="anatomy.js?v=20260809.1"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -405,9 +444,12 @@ function flash(el, msg, cls){
 /* ══════════════════ 啟動 ══════════════════ */
 function boot(src, d){
   // 部署競態/快取不同步防呆:必要的 JS 沒載進來就明講並讓使用者重載,別吐神祕錯誤
-  const missing = ["vrBuildIndex","vrPick","ldGenerate","caGenerate"].filter(f => typeof window[f] !== "function");
+  const missing = ["vrBuildIndex","vrPick","ldGenerate","caGenerate","anatomyFor"]
+    .filter(f => typeof window[f] !== "function");
   if(missing.length) throw new Error("程式檔沒載齊(" + missing.join(", ") + ")— 請重新整理頁面");
   DATA.templates = d.templates || []; DATA.phrases = d.phrases || []; DATA.cx = d.cx || [];
+  anatomySetup({index: d.anatomyIndex || {},
+                loadSlice: d.loadSlice || (() => Promise.reject(new Error("沒有影像來源")))});
   vrBuildIndex(DATA.templates);
   $("srcInfo").textContent = `${APP_VERSION} · 中興 ${cxGroups().length} · 模板 ${DATA.templates.length} · 短句 ${DATA.phrases.length} ${src==="cloud"?"☁️":"💻"}`;
   $("loginGate").style.display = "none";
@@ -465,6 +507,7 @@ function cxSelect(id){
   const sibs = DATA.cx.filter(x => x.group === t.group);
   $("cxVariants").innerHTML = sibs.length > 1 ? sibs.map(v =>
     `<button data-id="${esc(v.id)}" data-group="${esc(v.group)}" class="${v.id===id?"on":""}">${esc(v.variant||v.name)}</button>`).join("") : "";
+  anatomyFor(t.anatomy || []);
   const isLdct = t.id === "cx-ldct", isCa = t.id === "cx-cardiac";
   $("cxLdct").style.display = isLdct ? "" : "none";
   $("cxCardiac").style.display = isCa ? "" : "none";
@@ -948,7 +991,15 @@ $("loginVer").textContent = APP_VERSION;
 
 /* ══════════════════ 本機模式(有資料檔就直接開,不碰 Firebase)══════════════════ */
 if(typeof TEMPLATES !== "undefined" && typeof CX_TEMPLATES !== "undefined"){
-  boot("local", {templates: TEMPLATES, phrases: typeof PHRASES !== "undefined" ? PHRASES : [], cx: CX_TEMPLATES});
+  (async () => {
+    let anatomyIndex = {};                      // 本機切片索引沒有也無妨,解剖卡自動收起
+    try{ anatomyIndex = await (await fetch("anatomy/index.json")).json(); }catch(_){}
+    boot("local", {
+      templates: TEMPLATES, phrases: typeof PHRASES !== "undefined" ? PHRASES : [], cx: CX_TEMPLATES,
+      anatomyIndex,
+      loadSlice: (sid, n) => Promise.resolve(`anatomy/${sid}/${String(n).padStart(3,"0")}.jpg`),
+    });
+  })();
 }
 </script>
 
@@ -987,15 +1038,25 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
     }
     $("loginErr").textContent = "載入資料中…"; $("loginErr").className = "status";
     try{
-      const [t,p,c] = await Promise.all([
+      const [t,p,c,a] = await Promise.all([
         get(ref(fbDb, "voiceReport/templates")),
         get(ref(fbDb, "voiceReport/phrases")),
         get(ref(fbDb, "voiceReport/cxTemplates")),
+        get(ref(fbDb, "voiceReport/anatomy/index")),
       ]);
       if(!t.exists()) throw new Error("雲端還沒有模板資料");
       // 計數器雲端同步(counter 是 voiceReport 底下唯一開放共用帳號寫入的節點)
       window.xhCloudSave = (date, day) => set(ref(fbDb, "voiceReport/counter/" + date), day);
-      window.boot("cloud", {templates: t.val(), phrases: p.val() || [], cx: c.val() || []});
+      window.boot("cloud", {
+        templates: t.val(), phrases: p.val() || [], cx: c.val() || [],
+        anatomyIndex: a.val() || {},
+        // 切片是 base64 data URL,逐張讀,不一次拉整組(整組約 8 MB)
+        loadSlice: async (sid, n) => {
+          const s = await get(ref(fbDb, `voiceReport/anatomy/data/${sid}/${String(n).padStart(3,"0")}`));
+          if(!s.exists()) throw new Error("找不到切片 " + sid + "/" + n);
+          return s.val();
+        },
+      });
       onValue(ref(fbDb, "voiceReport/counter"), snap => window.xhApplyRemote(snap.val()));
     }catch(e){
       err("讀取失敗:"+(e.message || e.code));

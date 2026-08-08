@@ -12,6 +12,10 @@ cx-templates.js
 tools/library.json
 tools/cx.json
 
+# 解剖切片影像:第三方教學網站的圖僅供個人檢索,絕不進公開 repo(只放私有 RTDB)
+anatomy/
+tools/anatomy_upload.py
+
 # Firebase Admin 金鑰 = 全專案管理權,絕不進 repo
 service-account*.json
 tools/review.html
