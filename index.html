@@ -322,11 +322,11 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260808.2"></script>
-<script src="phrases.js?v=20260808.2"></script>
-<script src="cx-templates.js?v=20260808.2"></script>
-<script src="matcher.js?v=20260808.2"></script>
-<script src="report-gen.js?v=20260808.2"></script>
+<script src="templates.js?v=20260808.3"></script>
+<script src="phrases.js?v=20260808.3"></script>
+<script src="cx-templates.js?v=20260808.3"></script>
+<script src="matcher.js?v=20260808.3"></script>
+<script src="report-gen.js?v=20260808.3"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -517,12 +517,15 @@ function ldRun(mode){
 }
 $("ldGenPlain").onclick = () => ldRun("plain");
 $("ldGenRads").onclick  = () => ldRun("rads");
-// 兩欄接成一篇:各自去掉尾端空白,中間固定一個空行(樣板字串裡就是真的一個空行)
-const joinTwo = (a, b) => (a || "").trimEnd() + `
-
-` + (b || "").trimEnd();
+// 兩欄接成一篇:第一欄 + 一個空行 + 標題行 + 第二欄(標題行照中興標準 template 的寫法)
+const joinTwo = (a, b, label) => [
+  (a || "").trimEnd(),
+  "",
+  ...(label ? [label] : []),
+  (b || "").trimEnd(),
+].join("\n");
 $("ldCopyAll").onclick = async () =>
-  flash($("ldStatus"), (await copyText(joinTwo($("ldFindings").value, $("ldImpression").value))) ? "整篇已複製 ✓" : "複製失敗");
+  flash($("ldStatus"), (await copyText(joinTwo($("ldFindings").value, $("ldImpression").value, "Impression:"))) ? "整篇已複製 ✓" : "複製失敗");
 $("ldCopyF").onclick = async () => flash($("ldStatus"), (await copyText($("ldFindings").value, $("ldFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
 $("ldCopyI").onclick = async () => flash($("ldStatus"), (await copyText($("ldImpression").value, $("ldImpression"))) ? "Impression 已複製 ✓" : "複製失敗");
 $("ldCopyN").onclick = async () => flash($("ldStatus"), (await copyText($("ldImgNos").value, $("ldImgNos"))) ? "Image No 已複製 ✓" : "複製失敗");
@@ -552,7 +555,7 @@ $("caClear").onclick = () => {
   $("caFindings").value=""; $("caConclusion").value="";
 };
 $("caCopyAll").onclick = async () =>
-  flash($("caStatus"), (await copyText(joinTwo($("caFindings").value, $("caConclusion").value))) ? "整篇已複製 ✓" : "複製失敗");
+  flash($("caStatus"), (await copyText(joinTwo($("caFindings").value, $("caConclusion").value, "Conclusion:"))) ? "整篇已複製 ✓" : "複製失敗");
 $("caCopyF").onclick = async () => flash($("caStatus"), (await copyText($("caFindings").value, $("caFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
 $("caCopyC").onclick = async () => flash($("caStatus"), (await copyText($("caConclusion").value, $("caConclusion"))) ? "Conclusion 已複製 ✓" : "複製失敗");
 
