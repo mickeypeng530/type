@@ -32,7 +32,7 @@ META = [
          groupName="MRI abdomen", variant="沒打藥 (without)"),
     dict(id="cx-mrcp-wc",   name="MRI abdomen", group="cx-mrcp",
          groupName="MRI abdomen", variant="有打藥 (with/without)"),
-    dict(id="cx-lspine",    name="MRI L spine"),
+    dict(id="cx-lspine",    name="MRI L spine", anatomy=["ct-window-preset"]),
     dict(id="cx-wspine",    name="MRI whole spine"),
     dict(id="cx-wholebody", name="MRI whole body"),
     dict(id="cx-ldct",      name="LDCT",     generator=True),

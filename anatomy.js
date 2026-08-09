@@ -22,6 +22,13 @@ function anatomyFor(ids){
   const bar = document.getElementById("anatBar");
   bar.innerHTML = list.length > 1
     ? list.map(s => `<button data-sid="${s.id}">${s.name}</button>`).join("") : "";
+  // 單張圖(參考表、對照圖)不是切片組:標題與操作提示都要換,不然會叫人去滾一張不存在的切片
+  const single = list.every(s => s.count === 1);
+  document.getElementById("anatTitle").textContent =
+    single ? "🖼 " + list[0].name : "🦴 斷層解剖對照";
+  document.getElementById("anatHint").textContent =
+    single ? "點 ⛶ 可放大看" : "滾輪換切片 · Ctrl+滾輪縮放 · ←→↑↓ 也可以";
+  wrap.classList.toggle("single", single);
   anatSelect(list[0].id);
 }
 

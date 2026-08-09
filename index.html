@@ -81,6 +81,11 @@
     pointer-events:none;}
   .anatCtl{margin-top:9px; align-items:center;}
   .anatCtl input[type=range]{flex:1; min-width:120px; accent-color:var(--accent);}
+  /* 單張參考圖:高度貼合圖片,並收掉換切片的控制項 */
+  #cxAnat.single .anatStage{height:auto; max-height:min(66vh,620px); background:transparent;}
+  #cxAnat.single .anatStage img{max-height:min(66vh,620px);}
+  #cxAnat.single #anatPrev, #cxAnat.single #anatNext,
+  #cxAnat.single #anatSlider, #cxAnat.single .anatHud{display:none;}
 
   /* 結節表 */
   .tblwrap{overflow-x:auto; margin-top:10px;}
@@ -208,10 +213,10 @@
     <!-- 斷層解剖對照:只在該部位有切片時出現(影像存私有 RTDB,不進 repo) -->
     <div class="card" id="cxAnat" style="display:none">
       <div class="row" style="align-items:center">
-        <label style="margin:0">🦴 斷層解剖對照</label>
+        <label style="margin:0" id="anatTitle">🦴 斷層解剖對照</label>
         <div class="tplbar variants" id="anatBar" style="margin:0"></div>
         <span style="flex:1"></span>
-        <span class="hint">滾輪換切片 · Ctrl+滾輪縮放 · ←→↑↓ 也可以</span>
+        <span class="hint" id="anatHint">滾輪換切片 · Ctrl+滾輪縮放 · ←→↑↓ 也可以</span>
       </div>
       <div class="anatStage" id="anatStage">
         <img id="anatImg" alt="解剖切片" draggable="false">
@@ -417,12 +422,12 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260809.4"></script>
-<script src="phrases.js?v=20260809.4"></script>
-<script src="cx-templates.js?v=20260809.4"></script>
-<script src="matcher.js?v=20260809.4"></script>
-<script src="report-gen.js?v=20260809.4"></script>
-<script src="anatomy.js?v=20260809.4"></script>
+<script src="templates.js?v=20260810.1"></script>
+<script src="phrases.js?v=20260810.1"></script>
+<script src="cx-templates.js?v=20260810.1"></script>
+<script src="matcher.js?v=20260810.1"></script>
+<script src="report-gen.js?v=20260810.1"></script>
+<script src="anatomy.js?v=20260810.1"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1035,7 +1040,8 @@ if(typeof TEMPLATES !== "undefined" && typeof CX_TEMPLATES !== "undefined"){
     boot("local", {
       templates: TEMPLATES, phrases: typeof PHRASES !== "undefined" ? PHRASES : [], cx: CX_TEMPLATES,
       anatomyIndex,
-      loadSlice: (sid, n) => Promise.resolve(`anatomy/${sid}/${String(n).padStart(3,"0")}.jpg`),
+      loadSlice: (sid, n) => Promise.resolve(
+        `anatomy/${sid}/${String(n).padStart(3,"0")}.${(anatomyIndex[sid] || {}).ext || "jpg"}`),
     });
   })();
 }
