@@ -125,8 +125,11 @@
 - **改模板 → 改 `../0 Peng Rclick.ahk`，然後 `python tools/upload_rtdb.py`(= 解析 + 上雲 + 驗證,一條命令)**。需 `service-account.json` 在 voice-report/(gitignored;Console → 服務帳戶 → 產生私密金鑰)。只想重生本地檔不上雲 → `python tools/parse_ahk.py`。瀏覽器手動備援 → `admin.html`。
 - **改中興模板 → 改 `../中興標準template.txt`,然後同樣跑 `python tools/upload_rtdb.py`**
   (它會同時跑 parse_ahk.py 與 parse_cx.py 再上雲)。
-- **不想讓某條片語上雲/進網頁 → 加進 `tools/parse_ahk.py` 的 `SENSITIVE_ABBREVS`**,再跑 `upload_rtdb.py`
-  (目前擋掉 psh / pshid / psh1 / pshas,都是署名與個資)。
+- **個資有兩道關**(都在 `tools/parse_ahk.py`,改完跑 `upload_rtdb.py`):
+  - `SENSITIVE_ABBREVS` = **整條不上**(目前 psh / pshid / psh1 / pshas,署名與身分證)。
+  - `REDACT` = **就地塗掉、模板照留**(目前:`Operator:` / `Assistant:` 整行清空 +「中文姓名(工號)」樣式)。
+    整條排除會連帶丟掉有用的模板(`tace/` 介入報告),所以簽名這類用遮蔽。
+    兩者每次執行都會印出命中清單,當作證據。
 - **加/換 MSK 模板 → 改 `tools/parse_cx.py` 的 `MSK` 清單**(`src` = library.json 的模板 id、
   `split` = 正文佔前幾段、`anatomy` = 對應切片系列),再跑 `upload_rtdb.py`。
 - **加一組解剖切片 → `python tools/anatomy_upload.py <資料夾> <series-id> "顯示名稱"`**

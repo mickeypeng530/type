@@ -25,6 +25,27 @@ DEFAULT_SRC = VR_DIR.parent / "0 Peng Rclick.ahk"
 #   psh1  = 本名              pshas  = Assistant : Dr. 本名
 SENSITIVE_ABBREVS = {"psh", "pshid", "psh1", "pshas"}
 
+# 個資「就地遮蔽」:整條排除會連帶丟掉有用的模板(如 tace/ 的介入報告),
+# 所以簽名這類只塗掉人名/工號那一段,模板本體照留。
+# 規則 = (regex, 取代字串),對每個模板/片語的全文逐條套用。
+REDACT = [
+    # Operator: 彭嗣翔(96701)/黃俊傑(89088)  → Operator:(欄位留空給人填)
+    (re.compile(r"^(\s*(?:Operator|Assistant)\s*[::])[^\n]*$", re.M | re.I), r"\1"),
+    # 保險網:任何「中文姓名(4-6 位數字)」樣式
+    (re.compile(r"[一-鿿]{2,4}\s*[（(]\s*\d{4,6}\s*[)）]"), ""),
+]
+
+
+def redact(text):
+    """回傳 (遮蔽後文字, 命中次數)。"""
+    if not text:
+        return text, 0
+    n = 0
+    for rx, rep in REDACT:
+        text, k = rx.subn(rep, text)
+        n += k
+    return text, n
+
 DEF_RE = re.compile(r"^:([^:]*):(.+?)::(.*)$")
 TAB_SPLIT_RE = re.compile(r"\{tab\}", re.I)
 ENTER_RE = re.compile(r"\{enter\}", re.I)
@@ -202,21 +223,31 @@ def main():
         skipped.append(dict(abbrev=it["abbrev"], line=it["line"], reason="敏感排除(SENSITIVE_ABBREVS)"))
     print(f"敏感排除: {len(excluded)} 條 → {sorted(it['abbrev'] for it in excluded)}")
 
-    templates, phrases = [], []
+    templates, phrases, redacted = [], [], []
     for it in items:
         if classify(it) == "full":
             sec = it["sections"]
+            findings, n1 = redact(sec[0].strip("\n"))
+            impression, n2 = redact(sec[1].strip("\n") if len(sec) > 1 else "")
+            extra, n3 = [], 0
+            for s in sec[2:]:
+                e, k = redact(s.strip("\n"))
+                extra.append(e); n3 += k
+            if n1 + n2 + n3:
+                redacted.append((it["abbrev"], n1 + n2 + n3))
             templates.append(dict(
                 id=it["abbrev"], name=title_of(it),
-                findings=sec[0].strip("\n"),
-                impression=(sec[1].strip("\n") if len(sec) > 1 else ""),
-                extra=[s.strip("\n") for s in sec[2:]],
+                findings=findings, impression=impression, extra=extra,
                 note=it["note"], srcLine=it["line"], kind=it["kind"],
             ))
         else:
             text = "\n{tab}\n".join(it["sections"]) if len(it["sections"]) > 1 else it["sections"][0]
+            text, n = redact(text)
+            if n:
+                redacted.append((it["abbrev"], n))
             phrases.append(dict(id=it["abbrev"], text=text,
                                 note=it["note"], srcLine=it["line"], kind=it["kind"]))
+    print(f"個資遮蔽: {len(redacted)} 條 → {sorted(redacted)}")
 
     # ── 帳目核對 ─────────────────────────────────────────────
     print(f"hotstring 定義行: {n_defs}")
