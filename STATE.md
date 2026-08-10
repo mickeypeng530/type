@@ -64,12 +64,18 @@
   - `matcher.js` — 口說分頁的選模板計分器
   - `report-gen.js` — 中興分頁的 LDCT / Cardiac Ca 產生器(移植自 health AHK)
   - `anatomy.js` — 斷層解剖對照檢視器(掛在中興分頁,只在該模板有 `anatomy` 時出現)
+  - `expander.js` — 報告欄的 AHK hotstring 展開(`lt` + 空白 → `left`)
   - `templates.js` / `phrases.js` / `cx-templates.js` — 本機資料檔(gitignored,線上走 RTDB)
   - `anatomy/`(gitignored)— 切片影像本機副本 + `index.json`,線上走 RTDB
   - `snippets.html` — 轉址頁(舊書籤相容)
 - **中興模板**:source of truth = `../中興標準template.txt`(中興 7 組)+ `tools/library.json`(MSK 6 組),
   由 `tools/parse_cx.py` 解析成 `{id,name,body,extras[],generator,group,variant,anatomy[]}`;
   `generator:true` 的兩個(LDCT/Cardiac)由 report-gen.js 接手。
+- **縮寫展開**(2026-08-11):中興頁四個報告欄(`cxBody` / LDCT 兩欄 / Ca 兩欄)套用 `expander.js`,
+  收錄 `phrases` 裡 **893 條 kind=inline**(905 條扣掉 2 條個資、1 條含換行、9 組大小寫重複)。
+  語意照抄 AHK 預設(來源檔 1364 條 hotstring 無一帶 `*`):結尾字元才展開 / 必須是完整的字 /
+  結尾字元保留 / 大小寫沿用。查表用**最長匹配**(194 條縮寫本身以 `/` 結尾)。
+  口說頁**刻意不掛**——系統聽寫整段塞入不會逐字觸發,掛了只會誤改。開關存 `vr_expand`。
 - **斷層解剖對照**:影像來自 mrimaster.com(**© 版權他人,僅個人檢索**)→ `tools/anatomy_upload.py`
   壓成 JPEG 存 RTDB `voiceReport/anatomy/{index,data}`,**絕不進 public repo**(`.gitignore` 擋 `anatomy/` 與該腳本)。
   前端逐張讀(前後各預抓 2 張),模板的 `anatomy:[series]` 決定顯示哪組;腕關節有 axial/coronal 兩組。
@@ -104,6 +110,9 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **在 textarea 裡程式化改字,一律用 `document.execCommand("insertText")`**:直接寫 `.value` 或
+  `setRangeText()` 會把瀏覽器的 undo stack 清掉,使用者按 Ctrl+Z 救不回被自動改掉的字。
+  縮寫展開就是靠這點才敢自動改字。(`expander.js`)
 - **上傳腳本一律只寫自己的子節點,不准 `set()` 整個 `voiceReport`**:2026-08-09 `upload_rtdb.py` 用
   `db.reference("voiceReport").set({templates,phrases,cxTemplates,meta})` 整份取代,把後來才加的
   `anatomy`(解剖切片)與 `counter`(計數器)一起清空。症狀=線上登入後解剖卡完全不出現(index 讀到空)。
@@ -116,6 +125,8 @@
 - **改模板 → 改 `../0 Peng Rclick.ahk`，然後 `python tools/upload_rtdb.py`(= 解析 + 上雲 + 驗證,一條命令)**。需 `service-account.json` 在 voice-report/(gitignored;Console → 服務帳戶 → 產生私密金鑰)。只想重生本地檔不上雲 → `python tools/parse_ahk.py`。瀏覽器手動備援 → `admin.html`。
 - **改中興模板 → 改 `../中興標準template.txt`,然後同樣跑 `python tools/upload_rtdb.py`**
   (它會同時跑 parse_ahk.py 與 parse_cx.py 再上雲)。
+- **不想讓某條片語上雲/進網頁 → 加進 `tools/parse_ahk.py` 的 `SENSITIVE_ABBREVS`**,再跑 `upload_rtdb.py`
+  (目前擋掉 psh / pshid / psh1 / pshas,都是署名與個資)。
 - **加/換 MSK 模板 → 改 `tools/parse_cx.py` 的 `MSK` 清單**(`src` = library.json 的模板 id、
   `split` = 正文佔前幾段、`anatomy` = 對應切片系列),再跑 `upload_rtdb.py`。
 - **加一組解剖切片 → `python tools/anatomy_upload.py <資料夾> <series-id> "顯示名稱"`**

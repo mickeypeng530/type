@@ -60,6 +60,12 @@
   #tab-cx{--cxfs:13.5px;}
   #cxBody{min-height:200px; font-family:ui-monospace,Menlo,Consolas,monospace;
     font-size:var(--cxfs); line-height:1.55; resize:vertical;}
+  #cxOpts{margin:-2px 0 11px 0; align-items:center; gap:9px;}
+  #cxOpts code{background:var(--panel2); border:1px solid var(--line); border-radius:5px;
+    padding:1px 5px; font-family:ui-monospace,Consolas,monospace; font-size:12px;}
+  .chk{display:inline-flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;
+    white-space:nowrap; user-select:none;}
+  .chk input{width:15px; height:15px; accent-color:var(--accent); cursor:pointer;}
   .fsCtl{display:inline-flex; align-items:center; gap:4px; margin-left:2px;}
   .fsCtl button{padding:6px 9px; font-size:12.5px; min-width:34px;}
   #cxFsLabel{min-width:34px; text-align:center; cursor:pointer; font-variant-numeric:tabular-nums;}
@@ -189,6 +195,13 @@
   <section class="tab on" id="tab-cx">
     <div class="tplbar" id="cxBar"></div>
     <div class="tplbar variants" id="cxVariants"></div>
+
+    <div class="row" id="cxOpts">
+      <label class="chk"><input type="checkbox" id="expToggle"> ⚡ 縮寫展開</label>
+      <span class="hint" id="expHint">打 <code>lt</code> 再按空白 → <code>left</code>(Ctrl+Z 可復原;完整清單在「⌨️ 短句」頁)</span>
+      <span style="flex:1"></span>
+      <span class="status" id="expStatus" style="margin:0"></span>
+    </div>
 
     <!-- 一般模板:可編輯 textarea -->
     <div class="card" id="cxPlain">
@@ -422,12 +435,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260810.1"></script>
-<script src="phrases.js?v=20260810.1"></script>
-<script src="cx-templates.js?v=20260810.1"></script>
-<script src="matcher.js?v=20260810.1"></script>
-<script src="report-gen.js?v=20260810.1"></script>
-<script src="anatomy.js?v=20260810.1"></script>
+<script src="templates.js?v=20260811.1"></script>
+<script src="phrases.js?v=20260811.1"></script>
+<script src="cx-templates.js?v=20260811.1"></script>
+<script src="matcher.js?v=20260811.1"></script>
+<script src="report-gen.js?v=20260811.1"></script>
+<script src="anatomy.js?v=20260811.1"></script>
+<script src="expander.js?v=20260811.1"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -442,7 +456,8 @@ const APP_VERSION = (() => {
 })();
 const DATA = { templates: [], phrases: [], cx: [] };
 const LS = { key:"vr_openai_key", mode:"vr_mode", base:"vr_api_base", model:"vr_api_model",
-             tab:"vr_tab", pref:"vr_pref", cxEdit:"vr_cx_", cxFs:"vr_cx_fontsize" };
+             tab:"vr_tab", pref:"vr_pref", cxEdit:"vr_cx_", cxFs:"vr_cx_fontsize",
+             exp:"vr_expand" };
 const esc = s => (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 async function copyText(v, ta){
@@ -464,7 +479,7 @@ function flash(el, msg, cls){
 /* ══════════════════ 啟動 ══════════════════ */
 function boot(src, d){
   // 部署競態/快取不同步防呆:必要的 JS 沒載進來就明講並讓使用者重載,別吐神祕錯誤
-  const missing = ["vrBuildIndex","vrPick","ldGenerate","caGenerate","anatomyFor"]
+  const missing = ["vrBuildIndex","vrPick","ldGenerate","caGenerate","anatomyFor","expanderInit"]
     .filter(f => typeof window[f] !== "function");
   if(missing.length) throw new Error("程式檔沒載齊(" + missing.join(", ") + ")— 請重新整理頁面");
   DATA.templates = d.templates || []; DATA.phrases = d.phrases || []; DATA.cx = d.cx || [];
@@ -474,7 +489,7 @@ function boot(src, d){
   $("srcInfo").textContent = `${APP_VERSION} · 中興 ${cxGroups().length} · 模板 ${DATA.templates.length} · 短句 ${DATA.phrases.length} ${src==="cloud"?"☁️":"💻"}`;
   $("loginGate").style.display = "none";
   $("app").style.display = "";
-  cxInit(); snipInit(); voiceInit(); xhInit();
+  cxInit(); expInit(); snipInit(); voiceInit(); xhInit();
   switchTab(localStorage.getItem(LS.tab) || "cx");
 }
 window.boot = boot;
@@ -549,6 +564,23 @@ function cxSelect(id){
   $("cxExtrasWrap").style.display = ex.length ? "" : "none";
   $("cxExtras").innerHTML = ex.map((e,i) => `<button data-i="${i}">+ ${esc(e.title)}</button>`).join("");
 }
+/* 縮寫展開:掛在中興頁的四個報告欄(口說頁不掛 —— 系統聽寫是整段塞入,不會逐字觸發) */
+const EXP_FIELDS = ["cxBody", "ldFindings", "ldImpression", "caFindings", "caConclusion"];
+function expInit(){
+  const n = expanderInit(DATA.phrases, {
+    onExpand: (abbr, out) => flash($("expStatus"), `${abbr} → ${out.length > 28 ? out.slice(0,28)+"…" : out}`),
+  });
+  EXP_FIELDS.forEach(id => expanderAttach($(id)));
+  const on = localStorage.getItem(LS.exp) !== "0";
+  $("expToggle").checked = on; expanderSetOn(on);
+  $("expHint").title = `收錄 ${n} 條單行縮寫`;
+  $("expToggle").onchange = () => {
+    expanderSetOn($("expToggle").checked);
+    localStorage.setItem(LS.exp, $("expToggle").checked ? "1" : "0");
+    flash($("expStatus"), $("expToggle").checked ? "縮寫展開:開" : "縮寫展開:關");
+  };
+}
+
 /* 模板字級:A− / A＋ 調整,點數字回預設;存 localStorage,產生器輸出欄一起套用 */
 const CX_FS_DEF = 13.5, CX_FS_MIN = 11, CX_FS_MAX = 24;
 let cxFs = parseFloat(localStorage.getItem(LS.cxFs)) || CX_FS_DEF;

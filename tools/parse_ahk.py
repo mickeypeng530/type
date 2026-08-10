@@ -20,7 +20,10 @@ DEFAULT_SRC = VR_DIR.parent / "0 Peng Rclick.ahk"
 
 # 敏感縮寫排除名單:個資/帳密類 hotstring,永不進 templates.js / phrases.js / RTDB。
 # psh = 簽名檔(姓名+email);pshid = 證號。新增密碼類縮寫直接加進來重跑。
-SENSITIVE_ABBREVS = {"psh", "pshid"}
+# 個資 / 署名,一律不上雲也不進網頁:
+#   psh   = 署名 + email      pshid  = 身分證號
+#   psh1  = 本名              pshas  = Assistant : Dr. 本名
+SENSITIVE_ABBREVS = {"psh", "pshid", "psh1", "pshas"}
 
 DEF_RE = re.compile(r"^:([^:]*):(.+?)::(.*)$")
 TAB_SPLIT_RE = re.compile(r"\{tab\}", re.I)
