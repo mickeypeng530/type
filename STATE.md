@@ -76,6 +76,12 @@
   語意照抄 AHK 預設(來源檔 1364 條 hotstring 無一帶 `*`):結尾字元才展開 / 必須是完整的字 /
   結尾字元保留 / 大小寫沿用。查表用**最長匹配**(194 條縮寫本身以 `/` 結尾)。
   口說頁**刻意不掛**——系統聽寫整段塞入不會逐字觸發,掛了只會誤改。開關存 `vr_expand`。
+- **選取捷徑**(2026-08-11,`expander.js` 的 `editkeysAttach`):移植 AHK 行 819/823 的
+  `CapsLock & d`(選到行首+2 字,剛好跳過 `> `)與 `& f`(選到行尾),網頁改綁
+  **Ctrl+Shift+D / Ctrl+Shift+F**。CapsLock 不能當網頁 modifier —— `preventDefault()`
+  擋不掉 OS 層的大小寫切換。用**邏輯行**(`\n`)而非視覺換行,長行才不會只選一半。
+  ⚠️ AHK 那兩條本身是全域且只送標準編輯鍵,所以**在有裝 AHK 的電腦上原本就能用**;
+  這個網頁版是給公用電腦(裝不了 AHK)的備援。
 - **斷層解剖對照**:影像來自 mrimaster.com(**© 版權他人,僅個人檢索**)→ `tools/anatomy_upload.py`
   壓成 JPEG 存 RTDB `voiceReport/anatomy/{index,data}`,**絕不進 public repo**(`.gitignore` 擋 `anatomy/` 與該腳本)。
   前端逐張讀(前後各預抓 2 張),模板的 `anatomy:[series]` 決定顯示哪組;腕關節有 axial/coronal 兩組。

@@ -80,3 +80,34 @@ function expanderAttach(ta){
 }
 
 function expanderSetOn(on){ EXP.on = !!on; }
+
+/* ══ 選取捷徑:移植 AHK 的 CapsLock & d / & f ══════════════════════════
+   AHK 原文(行 819 / 823,皆為 live 且全域):
+     CapsLock & d :: Send {shift Down}{Home}{right}{right}{shift up}
+     CapsLock & f :: Send {shift Down}{End}{shift up}
+   CapsLock 在瀏覽器不能當 modifier(preventDefault 擋不掉 OS 的大小寫切換),
+   所以網頁版改綁 Ctrl+Shift+D / Ctrl+Shift+F。
+   語意逐項對齊:
+     D → 選取「行首 +2 字」到游標(模板每行都是 "> " 開頭,剛好跳過);方向 backward,
+         接著按 Shift+→ 會從左緣繼續縮放,跟 AHK 一樣。
+     F → 選取游標到行尾;方向 forward。
+   行的定義用**邏輯行**(\n),不是視覺換行 —— 長行(如 whole body 模板)才不會選一半。 */
+function editkeysAttach(ta){
+  if(!ta || ta._ekBound) return;
+  ta._ekBound = true;
+  ta.addEventListener("keydown", e => {
+    if(!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return;
+    const k = (e.key || "").toLowerCase();
+    if(k !== "d" && k !== "f") return;
+    const v = ta.value, pos = ta.selectionEnd;
+    if(k === "d"){
+      const ls = v.lastIndexOf("\n", pos - 1) + 1;          // 邏輯行起點
+      ta.setSelectionRange(Math.min(ls + 2, pos), pos, "backward");
+    }else{
+      let le = v.indexOf("\n", pos);
+      if(le < 0) le = v.length;
+      ta.setSelectionRange(pos, le, "forward");
+    }
+    e.preventDefault();                                     // 蓋掉瀏覽器預設(Ctrl+Shift+D = 全部分頁加書籤)
+  });
+}
