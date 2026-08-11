@@ -98,3 +98,15 @@
 - 附帶查證:AHK `CapsLock & b` 是自動登入巨集,含明文密碼。查過雲端 0 次、repo 追蹤檔 0 次,
   且 AHK 檔在 repo 之外(repo 根是 `voice-report/`,AHK 在上層 `Type/`)→ 未外洩。
 - 狀態:active
+
+## 2026-08-11 數字欄防呆:抄 AHK 的染色,但多補「靜默漏算」那一層
+- 決策:LDCT 尺寸/Image No、Ca 各分支分數與直徑,輸入時 ①全形自動轉半形 ②非數字染紅
+  ③產生報告時在警示列明講「第 N 列不列入 Lung-RADS」。**不擋產生**(與 AHK 一致)。
+- 證據:AHK `gChkSize`(`is not number`)/`gChkImNo`(`is not digit`)→ `RedFlags` → `WM_CTLCOLOREDIT`
+  染淡紅底(brush 0x8080FF);Send 按鈕不檢查 RedFlags。網頁版原本什麼都沒有,實測輸入 abc / 全形８:
+  三顆結節全印進報告,但 `report-gen.js` 的 `isNaN → continue` 讓其中兩顆**靜默不列入 Lung-RADS**,
+  badge 仍顯示一個看似正常的分級。Ca 同理:LM=abc 時自動加總把它當 0。
+- 沒選:①只抄染色(不解決靜默漏算,而那才是會發錯報告的那一項)
+  ②有紅欄就擋住產生(與 AHK 行為不一致,且醫師常需要先產生再回頭補)
+  ③改 report-gen.js 讓非數字直接不印(會讓使用者以為自己漏打,比印出來更難察覺)。
+- 狀態:active

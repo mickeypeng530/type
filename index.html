@@ -104,6 +104,8 @@
   .genOut textarea{min-height:190px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:var(--cxfs);}
   .genOut textarea.big{min-height:400px;}
   @media (max-width:1040px){ .gen2{grid-template-columns:1fr;} .genIn{order:-1;} }
+  /* 數字欄防呆:對齊 AHK 的 WM_CTLCOLOREDIT 淡紅底(gChkSize / gChkImNo) */
+  input.bad{background:rgba(255,77,94,.15); border-color:var(--err); color:var(--err);}
   .badge{display:inline-block; font-size:12px; border-radius:999px; padding:3px 11px;
     background:rgba(227,179,65,.13); border:1px solid rgba(227,179,65,.4); color:var(--hit);}
 
@@ -314,6 +316,7 @@
             <button class="ghost sm" id="caCopyC">📋 只複製這欄</button></div>
           <textarea id="caConclusion" spellcheck="false" style="min-height:70px"></textarea>
           <div class="status" id="caStatus"></div>
+          <div class="status" id="caWarn"></div>
         </div>
 
         <div class="genIn">
@@ -436,13 +439,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260811.3"></script>
-<script src="phrases.js?v=20260811.3"></script>
-<script src="cx-templates.js?v=20260811.3"></script>
-<script src="matcher.js?v=20260811.3"></script>
-<script src="report-gen.js?v=20260811.3"></script>
-<script src="anatomy.js?v=20260811.3"></script>
-<script src="expander.js?v=20260811.3"></script>
+<script src="templates.js?v=20260811.4"></script>
+<script src="phrases.js?v=20260811.4"></script>
+<script src="cx-templates.js?v=20260811.4"></script>
+<script src="matcher.js?v=20260811.4"></script>
+<script src="report-gen.js?v=20260811.4"></script>
+<script src="anatomy.js?v=20260811.4"></script>
+<script src="expander.js?v=20260811.4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -660,14 +663,56 @@ $("ldAdd").onclick = ldAddRow;
 $("ldClear").onclick = () => { ldReset(); $("ldWarn").textContent="";
   $("ldFindings").value=""; $("ldImpression").value=""; $("ldImgNos").value=""; $("ldRadsBadge").innerHTML=""; };
 $("ldRows").addEventListener("click", e => {
-  if(e.target.closest(".ld-del")){ e.target.closest("tr").remove(); ldRenumber(); }
+  if(e.target.closest(".ld-del")){ e.target.closest("tr").remove(); ldRenumber(); ldSyncWarn(); }
 });
-$("ldDate").addEventListener("change", () => {
-  const w = ldDateWarn($("ldDate").value);
+/* ── 數字欄防呆 ─────────────────────────────────────────────────────────
+   對齊 AHK:gChkSize(`is not number`)/ gChkImNo(`is not digit`)→ RedFlags
+   → WM_CTLCOLOREDIT 把框底染成淡紅。AHK 只染色,Send 不檢查。
+   這裡多做兩層,因為網頁版的靜默失敗比 AHK 嚴重:
+     ① 全形數字自動轉半形 —— `８` 看起來完全正常,但 parseFloat 會回 NaN。
+     ② 產生報告時明講哪幾列沒被納入 Lung-RADS —— report-gen.js 對解析不出的尺寸是
+        `continue`,結節照印進報告卻不算分級,畫面上原本零提示。
+   跟 AHK 一致的是:**不擋產生**,只警示。 */
+const NUM_RE = /^[+-]?(\d+\.?\d*|\.\d+)$/;      // ≈ AHK 的 `is number`
+const INT_RE = /^\d+$/;                          // ≈ AHK 的 `is digit`
+const toHalf = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+                     .replace(/[．。]/g, ".");
+const numBad = (v, re) => (v || "").trim() !== "" && !re.test((v || "").trim());
+function vldField(el, re){
+  const half = toHalf(el.value);
+  if(half !== el.value){                         // 全形→半形是 1:1 長度,游標位置不受影響
+    const p = el.selectionStart;
+    el.value = half;
+    try{ el.setSelectionRange(p, p); }catch(_){}
+  }
+  el.classList.toggle("bad", numBad(el.value, re));
+}
+function ldSyncWarn(){
+  const st = ldRead();
+  const bad = [];
+  st.rows.forEach((r, i) => {
+    const p = [];
+    if(numBad(r.size, NUM_RE)) p.push("尺寸");
+    if(numBad(r.im, INT_RE)) p.push("Image No");
+    if(p.length) bad.push(`第 ${i+1} 列(${p.join("、")})`);
+  });
+  const msgs = [ldDateWarn(st.cmpDate)];
+  if(bad.length) msgs.push(`⚠️ ${bad.join("、")}不是數字 → 該列不列入 Lung-RADS 計算(文字仍會印出)`);
+  const w = msgs.filter(Boolean).join(" · ");
   $("ldWarn").textContent = w; $("ldWarn").className = "status " + (w ? "err" : "");
+}
+$("ldRows").addEventListener("input", e => {
+  const t = e.target;
+  if(t.classList.contains("ld-size")) vldField(t, NUM_RE);
+  else if(t.classList.contains("ld-im")) vldField(t, INT_RE);
+  else return;
+  ldSyncWarn();
 });
+$("ldSI").addEventListener("input", () => vldField($("ldSI"), INT_RE));
+$("ldDate").addEventListener("change", ldSyncWarn);
 function ldRun(mode){
   const st = ldRead();
+  ldSyncWarn();
   if(!st.rows.some(r => r.size)) { /* 全空 → 產生「無結節」版本,照 AHK 行為 */ }
   const r = ldGenerate(st, mode);
   $("ldFindings").value = r.findings;
@@ -697,20 +742,32 @@ function caRead(){
            total:$("caTotal").value, valveIdx:+$("caValve").value,
            aortaIdx:+$("caAorta").value, aortaDia:$("caDia").value.trim() };
 }
+// 分支鈣化分數:非數字會被 caAutoTotal 當成 0 靜默吃掉 → 同樣要染色 + 明講
+const CA_NUM = [["caLM","LM"], ["caLAD","LAD"], ["caCX","LCX"], ["caRCA","RCA"],
+                ["caTotal","Total"], ["caDia","直徑"]];
+function caSyncWarn(){
+  const bad = CA_NUM.filter(([id]) => numBad($(id).value, NUM_RE)).map(([, n]) => n);
+  const w = bad.length ? `⚠️ ${bad.join("、")} 不是數字 → 自動加總以 0 計,報告會照字面印出` : "";
+  $("caWarn").textContent = w; $("caWarn").className = "status " + (w ? "err" : "");
+}
+CA_NUM.forEach(([id]) => $(id).addEventListener("input", () => { vldField($(id), NUM_RE); caSyncWarn(); }));
 document.querySelectorAll(".caScore").forEach(el => el.addEventListener("input", () => {
   if(!$("caTotal").dataset.manual) $("caTotal").value = caAutoTotal(caRead());
+  vldField($("caTotal"), NUM_RE);
 }));
 $("caTotal").addEventListener("input", () => { $("caTotal").dataset.manual = "1"; });
 $("caAorta").addEventListener("change", () => {
   $("caDiaWrap").style.display = $("caAorta").value === "1" ? "" : "none";
 });
 $("caGen").onclick = () => {
+  caSyncWarn();
   const r = caGenerate(caRead());
   $("caFindings").value = r.findings; $("caConclusion").value = r.conclusion;
   flash($("caStatus"), "已產生 ✓");
 };
 $("caClear").onclick = () => {
-  ["caLM","caLAD","caCX","caRCA","caTotal","caDia"].forEach(i => $(i).value = "");
+  CA_NUM.forEach(([i]) => { $(i).value = ""; $(i).classList.remove("bad"); });
+  caSyncWarn();
   delete $("caTotal").dataset.manual;
   $("caValve").value = "0"; $("caAorta").value = "0"; $("caDiaWrap").style.display = "none";
   $("caFindings").value=""; $("caConclusion").value="";

@@ -116,6 +116,9 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **全形數字是最陰險的輸入錯誤**:`８` 在畫面上跟 `8` 幾乎一樣,但 `parseFloat("８")` = NaN。
+  LDCT 的 `report-gen.js` 對解析不出的尺寸是 `continue` → **結節照印進報告,卻不列入 Lung-RADS**,
+  原本畫面零提示。現在數字欄輸入時自動轉半形 + 非數字染紅 + 產生時列出被排除的列(`vldField` / `ldSyncWarn`)。
 - **在 textarea 裡程式化改字,一律用 `document.execCommand("insertText")`**:直接寫 `.value` 或
   `setRangeText()` 會把瀏覽器的 undo stack 清掉,使用者按 Ctrl+Z 救不回被自動改掉的字。
   縮寫展開就是靠這點才敢自動改字。(`expander.js`)
