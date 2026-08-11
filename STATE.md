@@ -116,6 +116,9 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **LDCT 結節表的四個下拉可用數字鍵選**:游標在該格按 `N` = 第 N 個 option,`0` = 清空。
+  四欄的第 0 項都是空白,所以「數字 = option 索引」是一條通用規則,不需要各欄一張對照表
+  (位置 1-2 / 型態 1-5 / 肺葉 1-5,3 = RLL / 追蹤 1-3)。表頭有標數字範圍。
 - **全形數字是最陰險的輸入錯誤**:`８` 在畫面上跟 `8` 幾乎一樣,但 `parseFloat("８")` = NaN。
   LDCT 的 `report-gen.js` 對解析不出的尺寸是 `continue` → **結節照印進報告,卻不列入 Lung-RADS**,
   原本畫面零提示。現在數字欄輸入時自動轉半形 + 非數字染紅 + 產生時列出被排除的列(`vldField` / `ldSyncWarn`)。
