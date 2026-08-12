@@ -131,12 +131,20 @@
   (見 `~/Claude_Work/中興log_交換格式.md` §4)。
   ⚠️ 雲端寫入:件數走 **`update()` 不是 `set()`**(整份取代會把 log 子節點洗掉),要刪的欄位明寫 `null`;
   log 走 **`push()`** 逐筆追加,兩台機器同時記不會互相蓋掉。整天清空才用 `set(null)`。
+  匯出有兩顆鈕:**📋 複製給 Worknum**(彙總一列 9 欄)與 **📋 複製逐筆**(一列一筆 4 欄:
+  日期/時間/項目/增減)。兩種格式靠**欄數**辨識;不變式 = 逐筆各 key 總和 == 彙總件數,
+  所以負數(按錯修正)一定要一起送。格式定義寫在 `~/Claude_Work/中興log_交換格式.md` §6。
 - **LDCT 結節表的四個下拉可用數字鍵選**:游標在該格按 `N` = 第 N 個 option,`0` = 清空。
   四欄的第 0 項都是空白,所以「數字 = option 索引」是一條通用規則,不需要各欄一張對照表
   (位置 1-2 / 型態 1-5 / 肺葉 1-5,3 = RLL / 追蹤 1-3)。表頭有標數字範圍。
 - **全形數字是最陰險的輸入錯誤**:`８` 在畫面上跟 `8` 幾乎一樣,但 `parseFloat("８")` = NaN。
   LDCT 的 `report-gen.js` 對解析不出的尺寸是 `continue` → **結節照印進報告,卻不列入 Lung-RADS**,
   原本畫面零提示。現在數字欄輸入時自動轉半形 + 非數字染紅 + 產生時列出被排除的列(`vldField` / `ldSyncWarn`)。
+- **不要用 Bash heredoc 寫含反斜線跳脫的 JS**:這個環境會把跳脫的 tab/換行(反斜線 t、反斜線 n)
+  變成**真的**控制字元。真 tab 在字串裡合法(靜靜地能跑),真換行則是 syntax error,
+  而且瀏覽器只回一句 `Invalid or unexpected token` 不給行號。2026-08-13 為此 debug 一輪。
+  → 含跳脫字元的 JS 一律用 Edit 工具改。快速定位法:在頁面上 `fetch` 自己,
+  把每個 inline `<script>` 丟進 `new Function()` 看哪一塊炸。
 - **在 textarea 裡程式化改字,一律用 `document.execCommand("insertText")`**:直接寫 `.value` 或
   `setRangeText()` 會把瀏覽器的 undo stack 清掉,使用者按 Ctrl+Z 救不回被自動改掉的字。
   縮寫展開就是靠這點才敢自動改字。(`expander.js`)

@@ -440,7 +440,8 @@
         <div class="xhGrid" id="xhGrid"></div>
         <div id="xhLogRow"></div>
         <div class="xhGrid" id="xhWireRow">
-          <button class="ghost sm" id="xhWire" title="產生一列 TSV,到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 複製給 Worknum</button>
+          <button class="ghost sm" id="xhWire" title="彙總一列(9 欄):日期 起 訖 + 六項件數。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 複製給 Worknum</button>
+          <button class="ghost sm" id="xhWireEv" title="逐筆一列一筆(4 欄):日期 時間 項目 增減。需要 Worknum 端支援 activity log 匯入">📋 複製逐筆</button>
           <span class="hint" id="xhWirePreview"></span>
         </div>
       </div>
@@ -463,13 +464,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.2"></script>
-<script src="phrases.js?v=20260813.2"></script>
-<script src="cx-templates.js?v=20260813.2"></script>
-<script src="matcher.js?v=20260813.2"></script>
-<script src="report-gen.js?v=20260813.2"></script>
-<script src="anatomy.js?v=20260813.2"></script>
-<script src="expander.js?v=20260813.2"></script>
+<script src="templates.js?v=20260813.3"></script>
+<script src="phrases.js?v=20260813.3"></script>
+<script src="cx-templates.js?v=20260813.3"></script>
+<script src="matcher.js?v=20260813.3"></script>
+<script src="report-gen.js?v=20260813.3"></script>
+<script src="anatomy.js?v=20260813.3"></script>
+<script src="expander.js?v=20260813.3"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1117,7 +1118,7 @@ function xhDeriveSpan(day){
 function xhTsv(){
   const day = XH_ALL[xhDate] || {};
   return [xhDate, day.start || "", day.end || "",
-          ...XH_WIRE_KEYS.map(k => xhCount(day, k))].join("	");
+          ...XH_WIRE_KEYS.map(k => xhCount(day, k))].join("\t");
 }
 function setXhTime(which, val){
   const day = xhDay();
@@ -1128,6 +1129,13 @@ function setXhTime(which, val){
   if(!Object.keys(day).length) delete XH_ALL[xhDate];
   xhSaveNow();
   xhRenderPanel();
+}
+/* 逐筆格式:一列一筆,四欄 —— 日期 \t 時間 \t 項目 key \t 增減量
+   與彙總那列(9 欄)靠欄數區分。不變式:同一天逐筆各 key 的 d 總和 == 彙總列的件數,
+   所以負數(按錯修正)一定要一起送,不能只挑正的。 */
+function xhTsvEvents(){
+  return xhLogList(XH_ALL[xhDate])
+    .map(e => [xhDate, e.t, e.k, e.d].join("\t")).join("\n");
 }
 function xhWirePreview(){
   const day = XH_ALL[xhDate] || {};
@@ -1252,6 +1260,12 @@ function xhInit(){
     const day = XH_ALL[xhDate] || {};
     if(!xhTotalCount(day) && !day.start && !day.end){ flash($("xhStatus"), "本日沒有資料"); return; }
     flash($("xhStatus"), (await copyText(xhTsv())) ? "已複製一列 → 到 Worknum 按 📥 匯入" : "複製失敗");
+  };
+  $("xhWireEv").onclick = async () => {
+    const txt = xhTsvEvents();
+    if(!txt){ flash($("xhStatus"), "本日沒有逐筆紀錄"); return; }
+    const n = txt.split("\n").length;
+    flash($("xhStatus"), (await copyText(txt)) ? `已複製 ${n} 筆(一列一筆)` : "複製失敗");
   };
   $("xhCopy").onclick = async () => {
     const day = XH_ALL[xhDate], n = xhTotalCount(day);
