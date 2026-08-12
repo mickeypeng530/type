@@ -457,8 +457,7 @@
         <span id="xhSummary"></span>
         <b id="xhTotal"></b>
         <button class="ghost sm" id="xhCopy" title="人看的摘要:日期 + 各項件數">📋 摘要</button>
-        <button class="ghost sm" id="xhWire" title="給 Worknum 的彙總一列(9 欄):日期 起 訖 + 六項件數。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 彙總</button>
-        <button class="ghost sm" id="xhWireEv" title="給 Worknum 的逐筆(一列一筆 4 欄):日期 時間 項目 增減">📋 逐筆</button>
+        <button class="ghost sm" id="xhWire" title="給 Worknum:第一列是彙總(9 欄:日期 起 訖 + 六項件數),之後每列一筆逐筆事件(4 欄:日期 時間 項目 增減)。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 給 Worknum</button>
         <button class="ghost sm" id="xhClear">🗑 清空</button>
         <span class="status" id="xhStatus" style="margin:0; min-height:0"></span>
       </div>
@@ -469,13 +468,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.5"></script>
-<script src="phrases.js?v=20260813.5"></script>
-<script src="cx-templates.js?v=20260813.5"></script>
-<script src="matcher.js?v=20260813.5"></script>
-<script src="report-gen.js?v=20260813.5"></script>
-<script src="anatomy.js?v=20260813.5"></script>
-<script src="expander.js?v=20260813.5"></script>
+<script src="templates.js?v=20260813.6"></script>
+<script src="phrases.js?v=20260813.6"></script>
+<script src="cx-templates.js?v=20260813.6"></script>
+<script src="matcher.js?v=20260813.6"></script>
+<script src="report-gen.js?v=20260813.6"></script>
+<script src="anatomy.js?v=20260813.6"></script>
+<script src="expander.js?v=20260813.6"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1067,7 +1066,10 @@ function xhApplyRemote(val){
       return;
     }
   }
+  // 本機還有沒寫出去的改動(debounce 中)→ 保住當天那一包,別被回聲洗掉
+  const mine = xhDirty ? XH_ALL[xhDate] : null;
   XH_ALL = remote;
+  if(mine) XH_ALL[xhDate] = mine;
   localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
   // 使用者正在某個格子裡打字 → 只更新摘要,不重建 DOM(否則焦點會被搶走)。
   // 範圍是整條計數列(#xhInner):起訖時間欄在永遠可見的摘要列、不在面板裡,一樣要保護。
@@ -1076,13 +1078,16 @@ function xhApplyRemote(val){
 }
 window.xhApplyRemote = xhApplyRemote;
 
-let xhTimer;                                   // 所有欄位共用一個 timer,避免重疊寫入
+let xhTimer, xhDirty = false;                  // 所有欄位共用一個 timer,避免重疊寫入
 function xhSaveNow(){
   localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
+  const pend = xhPendingLog; xhPendingLog = [];
+  xhDirty = false;
   // 整天空了要寫 null(RTDB 遇 undefined 會同步 throw,且 null 才是刪除)
-  if(window.xhCloudSave) window.xhCloudSave(xhDate, XH_ALL[xhDate] || null);
+  // 件數 + 這次排隊的逐筆事件合併成一次 update,寫入期間不會有半套狀態被回聲讀到
+  if(window.xhCloudSave) window.xhCloudSave(xhDate, XH_ALL[xhDate] || null, pend);
 }
-function xhSaveDebounced(){ clearTimeout(xhTimer); xhTimer = setTimeout(xhSaveNow, 400); }
+function xhSaveDebounced(){ xhDirty = true; clearTimeout(xhTimer); xhTimer = setTimeout(xhSaveNow, 400); }
 addEventListener("pagehide", xhSaveNow);
 addEventListener("visibilitychange", () => { if(document.hidden) xhSaveNow(); });
 
@@ -1096,19 +1101,21 @@ const xhLogList = day => Object.entries(xhLog(day))
   .map(([id, e]) => ({id, ...e}))
   .sort((a, b) => (a.t || "").localeCompare(b.t || "") || a.id.localeCompare(b.id));
 
+/* ⚠ 逐筆事件**不可以**在這裡直接寫雲端。RTDB 寫入會立刻觸發本地 onValue 回聲,
+   而 xhApplyRemote 是「整包取代 XH_ALL」—— 回聲會在 setXhCount 改到一半時打進來,
+   把還沒存檔的件數洗掉。症狀:log 一直增加、數字永遠回到原值(2026-08-13 實際發生)。
+   → 事件先排隊,由 xhSaveNow 跟件數**合併成同一次 update()** 寫出去,一個動作一次寫入。 */
+let xhPendingLog = [];
 function xhAddLog(key, delta){
   if(!delta) return;
   const day = xhDay();
   const entry = {t: hhmm(new Date()), k: key, d: delta};
-  const id = window.xhCloudLog ? null : "l" + Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36);
+  // key 由 RTDB 產生(不寫入,只取 key)才能跨裝置排序;本機模式自己編一個
+  const id = (window.xhLogKey && window.xhLogKey())
+    || ("l" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36));
   day.log = day.log || {};
-  if(window.xhCloudLog){
-    // 雲端模式:push key 由 RTDB 決定,本機先不塞(onValue 回來時會帶進來),避免本機/雲端 key 打架
-    window.xhCloudLog(xhDate, entry);
-    day.log["pending-" + Date.now().toString(36)] = entry;   // 讓畫面立刻看得到,雲端快照回來就被取代
-  }else{
-    day.log[id] = entry;
-  }
+  day.log[id] = entry;
+  xhPendingLog.push([id, entry]);
   xhDeriveSpan(day);
 }
 // 起訖 = log 的最早/最晚時間;被手動改過的那一格就不再自動覆蓋
@@ -1141,6 +1148,12 @@ function setXhTime(which, val){
 function xhTsvEvents(){
   return xhLogList(XH_ALL[xhDate])
     .map(e => [xhDate, e.t, e.k, e.d].join("\t")).join("\n");
+}
+/* 一次匯出:第一列彙總(9 欄),之後每列一筆逐筆(4 欄)。
+   Worknum 端逐列看欄數就知道是哪一種,不需要標頭行也不需要兩次貼上。 */
+function xhTsvAll(){
+  const ev = xhTsvEvents();
+  return ev ? xhTsv() + "\n" + ev : xhTsv();
 }
 // 📜 紀錄 鈕上帶筆數,不用展開就知道今天記了幾筆
 function xhLogBtn(day){
@@ -1274,13 +1287,9 @@ function xhInit(){
   $("xhWire").onclick = async () => {
     const day = XH_ALL[xhDate] || {};
     if(!xhTotalCount(day) && !day.start && !day.end){ flash($("xhStatus"), "本日沒有資料"); return; }
-    flash($("xhStatus"), (await copyText(xhTsv())) ? "已複製一列 → 到 Worknum 按 📥 匯入" : "複製失敗");
-  };
-  $("xhWireEv").onclick = async () => {
-    const txt = xhTsvEvents();
-    if(!txt){ flash($("xhStatus"), "本日沒有逐筆紀錄"); return; }
-    const n = txt.split("\n").length;
-    flash($("xhStatus"), (await copyText(txt)) ? `已複製 ${n} 筆(一列一筆)` : "複製失敗");
+    const nev = xhLogList(day).length;
+    flash($("xhStatus"), (await copyText(xhTsvAll()))
+      ? `已複製:彙總 1 列 + 逐筆 ${nev} 列 → 到 Worknum 按 📥 匯入` : "複製失敗");
   };
   $("xhCopy").onclick = async () => {
     const day = XH_ALL[xhDate], n = xhTotalCount(day);
@@ -1352,15 +1361,18 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
       // 計數器雲端同步(counter 是 voiceReport 底下唯一開放共用帳號寫入的節點)
       // ⚠ 件數用 update **不是** set:整份取代會把 log 子節點一起洗掉(這個坑本專案踩過兩次)。
       //   要刪的欄位得明寫 null —— RTDB 的 update 忽略 undefined。
-      window.xhCloudSave = (date, day) => {
+      // push(ref) 不帶值 = 只產生 key、不寫入。用它讓逐筆事件跨裝置照時間排序。
+      window.xhLogKey = () => push(ref(fbDb, "voiceReport/counter")).key;
+      window.xhCloudSave = (date, day, pendingLog) => {
         const node = ref(fbDb, "voiceReport/counter/" + date);
         if(!day) return set(node, null);                    // 整天清空(連 log 一起)
         const patch = {};
         for(const k of window.XH_FIELD_KEYS) patch[k] = (day[k] === undefined ? null : day[k]);
+        // 逐筆事件用 log/<pushKey> 深層路徑併進同一次 update:一個動作一次寫入,
+        // 不會有「log 已落地、件數還沒」的中間狀態被 onValue 回聲讀回來。
+        for(const [id, e] of (pendingLog || [])) patch["log/" + id] = e;
         return update(node, patch);
       };
-      // 逐筆事件用 push key 追加 —— 兩台機器同時記也不會互相蓋掉
-      window.xhCloudLog = (date, entry) => push(ref(fbDb, "voiceReport/counter/" + date + "/log"), entry);
       window.boot("cloud", {
         templates: t.val(), phrases: p.val() || [], cx: c.val() || [],
         anatomyIndex: a.val() || {},
