@@ -156,6 +156,12 @@
   .xhItem{display:flex; gap:3px; align-items:center; font-size:12.5px;}
   .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
+  #xhLogRow{margin-top:7px; border-top:1px solid var(--line); padding-top:7px;
+    max-height:96px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:4px 8px;
+    font-size:12px; font-family:ui-monospace,Consolas,monospace; color:var(--muted);}
+  #xhLogRow .ev{white-space:nowrap;}
+  #xhLogRow .ev b{color:var(--text); font-weight:600;}
+  #xhLogRow .ev.neg b{color:var(--err);}
   #xhWireRow{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
   #xhWirePreview{font-family:ui-monospace,Consolas,monospace;}
   .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
@@ -432,6 +438,7 @@
     <div id="xhInner">
       <div id="xhPanel">
         <div class="xhGrid" id="xhGrid"></div>
+        <div id="xhLogRow"></div>
         <div class="xhGrid" id="xhWireRow">
           <button class="ghost sm" id="xhWire" title="產生一列 TSV,到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 複製給 Worknum</button>
           <span class="hint" id="xhWirePreview"></span>
@@ -456,13 +463,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.1"></script>
-<script src="phrases.js?v=20260813.1"></script>
-<script src="cx-templates.js?v=20260813.1"></script>
-<script src="matcher.js?v=20260813.1"></script>
-<script src="report-gen.js?v=20260813.1"></script>
-<script src="anatomy.js?v=20260813.1"></script>
-<script src="expander.js?v=20260813.1"></script>
+<script src="templates.js?v=20260813.2"></script>
+<script src="phrases.js?v=20260813.2"></script>
+<script src="cx-templates.js?v=20260813.2"></script>
+<script src="matcher.js?v=20260813.2"></script>
+<script src="report-gen.js?v=20260813.2"></script>
+<script src="anatomy.js?v=20260813.2"></script>
+<script src="expander.js?v=20260813.2"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1029,6 +1036,11 @@ const xhDay = () => (XH_ALL[xhDate] = XH_ALL[xhDate] || {});
      會靜默把資料錯位塞進 Worknum。要改必須兩個專案一起改。
    ⚠ 不傳金額:單價是 Worknum settings.xhPrices 的責任,兩邊都存遲早漂移。 */
 const XH_WIRE_KEYS = ["mriBase", "mriC", "mriNc", "ca", "ctC", "ctNc"];
+// 當日物件裡「屬於件數/時段」的欄位;雲端 update 只覆寫這些,log 子節點不動。
+// sMan / eMan = 起訖被手動改過的旗標,之後就不再被逐筆 log 自動覆蓋。
+const XH_FIELD_KEYS = [...XH_WIRE_KEYS, "start", "end", "sMan", "eMan"];
+window.XH_FIELD_KEYS = XH_FIELD_KEYS;
+const hhmm = d => `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 
 const xhCount = (day, key) => Number(day && day[key]) || 0;
 const xhTotalCount = day => XH_SCHEMA.reduce((s, it) => s + xhCount(day, it.key), 0);
@@ -1068,6 +1080,39 @@ function xhSaveDebounced(){ clearTimeout(xhTimer); xhTimer = setTimeout(xhSaveNo
 addEventListener("pagehide", xhSaveNow);
 addEventListener("visibilitychange", () => { if(document.hidden) xhSaveNow(); });
 
+/* 逐筆時間戳。前提是**現場即時按計數**(使用者 2026-08-13 確認),時間戳才是真的工作時刻;
+   若哪天改回事後補登就必須停掉,否則會把「補登時刻」偽裝成量測結果
+   (見 中興log_交換格式.md §4,Worknum 那邊為此撤掉過一版修法)。
+   entry = { t:"HH:MM"(當地時間), k:項目 key, d:增減量 }。
+   ± 兩個方向都記,所以 log 可以完整還原件數;按錯再按回來 = +1 與 −1 兩筆,不需要刪除功能。 */
+const xhLog = day => (day && day.log) || {};
+const xhLogList = day => Object.entries(xhLog(day))
+  .map(([id, e]) => ({id, ...e}))
+  .sort((a, b) => (a.t || "").localeCompare(b.t || "") || a.id.localeCompare(b.id));
+
+function xhAddLog(key, delta){
+  if(!delta) return;
+  const day = xhDay();
+  const entry = {t: hhmm(new Date()), k: key, d: delta};
+  const id = window.xhCloudLog ? null : "l" + Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36);
+  day.log = day.log || {};
+  if(window.xhCloudLog){
+    // 雲端模式:push key 由 RTDB 決定,本機先不塞(onValue 回來時會帶進來),避免本機/雲端 key 打架
+    window.xhCloudLog(xhDate, entry);
+    day.log["pending-" + Date.now().toString(36)] = entry;   // 讓畫面立刻看得到,雲端快照回來就被取代
+  }else{
+    day.log[id] = entry;
+  }
+  xhDeriveSpan(day);
+}
+// 起訖 = log 的最早/最晚時間;被手動改過的那一格就不再自動覆蓋
+function xhDeriveSpan(day){
+  const ts = xhLogList(day).map(e => e.t).filter(Boolean);
+  if(!ts.length) return;
+  if(!day.sMan) day.start = ts[0];
+  if(!day.eMan) day.end = ts[ts.length - 1];
+}
+
 // 日期用當地日曆日(ymd 走 getFullYear/Month/Date)——toISOString 在台灣早上 8 點前會給前一天
 function xhTsv(){
   const day = XH_ALL[xhDate] || {};
@@ -1077,9 +1122,12 @@ function xhTsv(){
 function setXhTime(which, val){
   const day = xhDay();
   if(val) day[which] = val; else delete day[which];
+  // 手動改過就立旗標,之後逐筆 log 不再覆蓋這一格;清空該格則交還給 log 自動推導
+  const flag = which === "start" ? "sMan" : "eMan";
+  if(val) day[flag] = 1; else { delete day[flag]; xhDeriveSpan(day); }
   if(!Object.keys(day).length) delete XH_ALL[xhDate];
   xhSaveNow();
-  xhWirePreview();
+  xhRenderPanel();
 }
 function xhWirePreview(){
   const day = XH_ALL[xhDate] || {};
@@ -1087,10 +1135,12 @@ function xhWirePreview(){
   $("xhWirePreview").textContent = `${xhDate} · ${span} · ${xhTotalCount(day)} 件`;
 }
 
-function setXhCount(key, val, debounce){
+function setXhCount(key, val, debounce, noLog){
   const v = Math.max(0, Math.round(Number(val) || 0));   // 夾 0、取整、壞值當 0
   const day = xhDay();
+  const delta = v - xhCount(day, key);
   if(v) day[key] = v; else delete day[key];             // 0 就刪 key,不留雜訊
+  if(!noLog) xhAddLog(key, delta);                      // ± 與直接打數字都記(打數字 = 一次多筆的意思)
   if(!Object.keys(day).length) delete XH_ALL[xhDate];
   debounce ? xhSaveDebounced() : xhSaveNow();
 }
@@ -1140,8 +1190,18 @@ function xhRenderPanel(){
     const input = document.createElement("input");
     input.type = "number"; input.inputMode = "numeric"; input.min = "0";
     input.value = String(xhCount(day, it.key));
-    input.onfocus = e => e.target.select();               // 點進去直接蓋掉
-    input.oninput = e => { setXhCount(it.key, e.target.value, true); xhRefreshSummary(); };
+    input.onfocus = e => {                                // 點進去直接蓋掉
+      e.target.select();
+      e.target.dataset.base = String(xhCount(XH_ALL[xhDate], it.key));
+    };
+    // 打字中不記 log —— 否則打 "10" 會拆成 +1、+9 兩筆;離開欄位時再記一筆淨差額
+    input.oninput = e => { setXhCount(it.key, e.target.value, true, true); xhRefreshSummary(); };
+    input.onchange = e => {
+      const base = Number(e.target.dataset.base || 0);
+      xhAddLog(it.key, xhCount(XH_ALL[xhDate], it.key) - base);
+      e.target.dataset.base = String(xhCount(XH_ALL[xhDate], it.key));
+      xhSaveNow(); xhRenderPanel();
+    };
     row.append(lab, minus, input, plus);
     if(it.base){                                         // n/10 進度(數滿自動打勾)
       const prog = document.createElement("span");
@@ -1154,8 +1214,16 @@ function xhRenderPanel(){
   const day2 = XH_ALL[xhDate] || {};
   $("xhStart").value = day2.start || "";
   $("xhEnd").value   = day2.end || "";
+  xhRenderLog(day2);
   xhRefreshSummary();
   xhWirePreview();
+}
+function xhRenderLog(day){
+  const list = xhLogList(day);
+  const short = k => { const it = XH_SCHEMA.find(x => x.key === k); return it ? (it.short || it.label) : k; };
+  $("xhLogRow").innerHTML = list.length
+    ? list.map(e => `<span class="ev${e.d < 0 ? " neg" : ""}">${esc(e.t)} <b>${esc(short(e.k))}${e.d > 0 ? "+" : ""}${e.d}</b></span>`).join("")
+    : `<span style="opacity:.6">尚無逐筆紀錄 —— 按 ＋ 或改數字就會記下當下時間</span>`;
 }
 function xhInit(){
   $("xhDate").value = xhDate;
@@ -1170,7 +1238,8 @@ function xhInit(){
   $("xhClear").onclick = () => {
     const day = XH_ALL[xhDate], n = xhTotalCount(day);
     if(!n && !(day && (day.start || day.end))){ flash($("xhStatus"), "本日沒有計數"); return; }
-    if(!confirm(`清空 ${xhDate} 的計數?\n\n${xhBreakdownText(day)}(共 ${n} 件)\n\n會一併從雲端刪除,無法復原。`)) return;
+    const nlog = xhLogList(day).length;
+    if(!confirm(`清空 ${xhDate} 的計數?\n\n${xhBreakdownText(day)}(共 ${n} 件)${nlog ? `\n逐筆時間紀錄 ${nlog} 筆也會一起刪除` : ``}\n\n會一併從雲端刪除,無法復原。`)) return;
     delete XH_ALL[xhDate];                 // 連同 start/end 一起清掉
     xhSaveNow();
     xhRenderPanel();
@@ -1214,7 +1283,7 @@ if(typeof TEMPLATES !== "undefined" && typeof CX_TEMPLATES !== "undefined"){
 import { fbAuth, fbDb, OWNER_UID, SHARED_UID, SHARED_EMAIL } from "./firebase-init.js";
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { ref, get, set, update, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const $ = id => document.getElementById(id);
 const err = m => { $("loginErr").textContent = m; $("loginErr").className = "status err"; };
@@ -1252,7 +1321,17 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
       ]);
       if(!t.exists()) throw new Error("雲端還沒有模板資料");
       // 計數器雲端同步(counter 是 voiceReport 底下唯一開放共用帳號寫入的節點)
-      window.xhCloudSave = (date, day) => set(ref(fbDb, "voiceReport/counter/" + date), day);
+      // ⚠ 件數用 update **不是** set:整份取代會把 log 子節點一起洗掉(這個坑本專案踩過兩次)。
+      //   要刪的欄位得明寫 null —— RTDB 的 update 忽略 undefined。
+      window.xhCloudSave = (date, day) => {
+        const node = ref(fbDb, "voiceReport/counter/" + date);
+        if(!day) return set(node, null);                    // 整天清空(連 log 一起)
+        const patch = {};
+        for(const k of window.XH_FIELD_KEYS) patch[k] = (day[k] === undefined ? null : day[k]);
+        return update(node, patch);
+      };
+      // 逐筆事件用 push key 追加 —— 兩台機器同時記也不會互相蓋掉
+      window.xhCloudLog = (date, entry) => push(ref(fbDb, "voiceReport/counter/" + date + "/log"), entry);
       window.boot("cloud", {
         templates: t.val(), phrases: p.val() || [], cx: c.val() || [],
         anatomyIndex: a.val() || {},
