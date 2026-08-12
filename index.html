@@ -156,12 +156,19 @@
   .xhItem{display:flex; gap:3px; align-items:center; font-size:12.5px;}
   .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
+  /* 逐筆 log:三欄一列(時間 / 項目 / 增減),對齊 Worknum 報告 log 的排法。
+     複製出去是「時間\n項目\n增減」三行,跟 Worknum 那邊貼出來的樣子一致。 */
   #xhLogRow{margin-top:7px; border-top:1px solid var(--line); padding-top:7px;
-    max-height:96px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:4px 8px;
-    font-size:12px; font-family:ui-monospace,Consolas,monospace; color:var(--muted);}
-  #xhLogRow .ev{white-space:nowrap;}
-  #xhLogRow .ev b{color:var(--text); font-weight:600;}
-  #xhLogRow .ev.neg b{color:var(--err);}
+    max-height:168px; overflow-y:auto; font-size:12.5px;}
+  #xhLogRow .lg{display:grid; grid-template-columns:46px 1fr auto; gap:0 10px;
+    align-items:baseline; padding:3px 2px; border-bottom:1px solid rgba(255,255,255,.04);}
+  #xhLogRow .lg:last-child{border-bottom:0;}
+  #xhLogRow .t{color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
+  #xhLogRow .k{color:var(--text);}
+  #xhLogRow .d{font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--accent);
+    text-align:right; min-width:34px;}
+  #xhLogRow .lg.neg .d{color:var(--err);}
+  #xhLogRow .empty{color:var(--muted); opacity:.7;}
   #xhWireRow{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
   #xhWirePreview{font-family:ui-monospace,Consolas,monospace;}
   .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
@@ -464,13 +471,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.3"></script>
-<script src="phrases.js?v=20260813.3"></script>
-<script src="cx-templates.js?v=20260813.3"></script>
-<script src="matcher.js?v=20260813.3"></script>
-<script src="report-gen.js?v=20260813.3"></script>
-<script src="anatomy.js?v=20260813.3"></script>
-<script src="expander.js?v=20260813.3"></script>
+<script src="templates.js?v=20260813.4"></script>
+<script src="phrases.js?v=20260813.4"></script>
+<script src="cx-templates.js?v=20260813.4"></script>
+<script src="matcher.js?v=20260813.4"></script>
+<script src="report-gen.js?v=20260813.4"></script>
+<script src="anatomy.js?v=20260813.4"></script>
+<script src="expander.js?v=20260813.4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1226,12 +1233,15 @@ function xhRenderPanel(){
   xhRefreshSummary();
   xhWirePreview();
 }
+// 三欄一列:時間 / 項目 / 增減 —— 與 Worknum 報告 log 同一種排法
+const xhItemLabel = k => { const it = XH_SCHEMA.find(x => x.key === k); return it ? it.label : k; };
 function xhRenderLog(day){
   const list = xhLogList(day);
-  const short = k => { const it = XH_SCHEMA.find(x => x.key === k); return it ? (it.short || it.label) : k; };
   $("xhLogRow").innerHTML = list.length
-    ? list.map(e => `<span class="ev${e.d < 0 ? " neg" : ""}">${esc(e.t)} <b>${esc(short(e.k))}${e.d > 0 ? "+" : ""}${e.d}</b></span>`).join("")
-    : `<span style="opacity:.6">尚無逐筆紀錄 —— 按 ＋ 或改數字就會記下當下時間</span>`;
+    ? list.map(e => `<div class="lg${e.d < 0 ? " neg" : ""}"><span class="t">${esc(e.t)}</span>`
+        + `<span class="k">${esc(xhItemLabel(e.k))}</span>`
+        + `<span class="d">${e.d > 0 ? "+" : ""}${e.d}</span></div>`).join("")
+    : `<div class="empty">尚無逐筆紀錄 —— 按 ＋ 或改數字就會記下當下時間</div>`;
 }
 function xhInit(){
   $("xhDate").value = xhDate;
