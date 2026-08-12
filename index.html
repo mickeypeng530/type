@@ -145,8 +145,11 @@
     white-space:nowrap; min-width:0; flex:1 1 60px;}
   /* 起訖時間跟計數鈕、日期同一排;壓到最小尺寸,讓步的是摘要文字不是這裡 */
   #xhTime{display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;}
-  #xhTime input[type=time]{padding:4px 5px; font-size:12.5px; border-radius:7px; width:88px;}
-  #xhTime .dash{opacity:.5; font-size:12px;}
+  /* 不要寫死寬度:time 欄的內在寬度跟地區格式走(12 小時制會多出 AM/PM,系統字體放大也會變寬),
+     寫死 88px 在那些情況會把時間切掉。改成內容決定、只給下限、且不准被 flex 壓縮。 */
+  #xhTime input[type=time]{padding:4px 6px; font-size:12.5px; border-radius:7px;
+    width:auto; min-width:86px; flex:0 0 auto;}
+  #xhTime .dash{opacity:.5; font-size:12px; flex:0 0 auto;}
   #xhTotal{font-size:14px; color:var(--accent);}
   #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
   #xhBar.open #xhPanel{display:block;}
@@ -468,13 +471,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.6"></script>
-<script src="phrases.js?v=20260813.6"></script>
-<script src="cx-templates.js?v=20260813.6"></script>
-<script src="matcher.js?v=20260813.6"></script>
-<script src="report-gen.js?v=20260813.6"></script>
-<script src="anatomy.js?v=20260813.6"></script>
-<script src="expander.js?v=20260813.6"></script>
+<script src="templates.js?v=20260813.7"></script>
+<script src="phrases.js?v=20260813.7"></script>
+<script src="cx-templates.js?v=20260813.7"></script>
+<script src="matcher.js?v=20260813.7"></script>
+<script src="report-gen.js?v=20260813.7"></script>
+<script src="anatomy.js?v=20260813.7"></script>
+<script src="expander.js?v=20260813.7"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */

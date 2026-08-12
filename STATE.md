@@ -156,6 +156,12 @@
   跟件數合併成同一個 `update()`(逐筆走 `log/<pushKey>` 深層路徑)。另外 debounce 期間
   (`xhDirty`)收到的遠端快照不覆蓋當天那一包。
   測法:自己寫一個「寫完立刻同步回聲」的假雲端,不要只測本機模式。
+- **`input[type=time]` / `[type=date]` 不要寫死寬度**:內在寬度會跟地區格式(12 小時制多出 AM/PM)、
+  系統字體大小走。寫死 88px 在我的機器剛好、在使用者機器就把時間切掉。
+  ⚠️ 而且 **`scrollWidth > clientWidth` 驗不出來** —— time/date 的日曆與時鐘圖示在 shadow DOM,
+  不計入 scrollWidth,所以量到「沒被切」其實被切了。
+  正確驗法:設 `width:auto` 看瀏覽器選多寬(本例 116px),那才是真正需要的寬度。
+  → 用 `width:auto; min-width:…; flex:0 0 auto`,讓旁邊的彈性元素(摘要文字)去讓步。
 - **在 textarea 裡程式化改字,一律用 `document.execCommand("insertText")`**:直接寫 `.value` 或
   `setRangeText()` 會把瀏覽器的 undo stack 清掉,使用者按 Ctrl+Z 救不回被自動改掉的字。
   縮寫展開就是靠這點才敢自動改字。(`expander.js`)
