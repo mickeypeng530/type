@@ -169,8 +169,8 @@
     text-align:right; min-width:34px;}
   #xhLogRow .lg.neg .d{color:var(--err);}
   #xhLogRow .empty{color:var(--muted); opacity:.7;}
-  #xhWireRow{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
-  #xhWirePreview{font-family:ui-monospace,Consolas,monospace;}
+  /* 逐筆紀錄自成一段,由 📜 紀錄 獨立開關 —— 跟 🧮 計數 面板互不牽連 */
+  #xhLogWrap{display:none;} #xhBar.logopen #xhLogWrap{display:block;}
   .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
     border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
@@ -445,22 +445,20 @@
     <div id="xhInner">
       <div id="xhPanel">
         <div class="xhGrid" id="xhGrid"></div>
-        <div id="xhLogRow"></div>
-        <div class="xhGrid" id="xhWireRow">
-          <button class="ghost sm" id="xhWire" title="彙總一列(9 欄):日期 起 訖 + 六項件數。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 複製給 Worknum</button>
-          <button class="ghost sm" id="xhWireEv" title="逐筆一列一筆(4 欄):日期 時間 項目 增減。需要 Worknum 端支援 activity log 匯入">📋 複製逐筆</button>
-          <span class="hint" id="xhWirePreview"></span>
-        </div>
       </div>
+      <div id="xhLogWrap"><div id="xhLogRow"></div></div>
       <div id="xhSummaryRow">
         <button class="ghost sm" id="xhToggle">🧮 計數</button>
+        <button class="ghost sm" id="xhLogToggle" title="逐筆時間紀錄(按一次展開/收起)">📜 紀錄</button>
         <input type="date" id="xhDate" style="padding:5px 8px; font-size:13px">
         <span id="xhTime" title="到中興的起訖時間;Worknum 靠它把這段標成「在中興」,不會被當成空檔">
           <input type="time" id="xhStart"><span class="dash">–</span><input type="time" id="xhEnd">
         </span>
         <span id="xhSummary"></span>
         <b id="xhTotal"></b>
-        <button class="ghost sm" id="xhCopy">📋 複製</button>
+        <button class="ghost sm" id="xhCopy" title="人看的摘要:日期 + 各項件數">📋 摘要</button>
+        <button class="ghost sm" id="xhWire" title="給 Worknum 的彙總一列(9 欄):日期 起 訖 + 六項件數。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 彙總</button>
+        <button class="ghost sm" id="xhWireEv" title="給 Worknum 的逐筆(一列一筆 4 欄):日期 時間 項目 增減">📋 逐筆</button>
         <button class="ghost sm" id="xhClear">🗑 清空</button>
         <span class="status" id="xhStatus" style="margin:0; min-height:0"></span>
       </div>
@@ -471,13 +469,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260813.4"></script>
-<script src="phrases.js?v=20260813.4"></script>
-<script src="cx-templates.js?v=20260813.4"></script>
-<script src="matcher.js?v=20260813.4"></script>
-<script src="report-gen.js?v=20260813.4"></script>
-<script src="anatomy.js?v=20260813.4"></script>
-<script src="expander.js?v=20260813.4"></script>
+<script src="templates.js?v=20260813.5"></script>
+<script src="phrases.js?v=20260813.5"></script>
+<script src="cx-templates.js?v=20260813.5"></script>
+<script src="matcher.js?v=20260813.5"></script>
+<script src="report-gen.js?v=20260813.5"></script>
+<script src="anatomy.js?v=20260813.5"></script>
+<script src="expander.js?v=20260813.5"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1031,7 +1029,7 @@ const XH_SCHEMA = [
   { key:"ctNc",    label:"CT 不打藥" },
 ];
 const XH_BASE_N = 10;
-const XH_LS = "vr_xh", XH_OPEN_LS = "vr_xh_open";
+const XH_LS = "vr_xh", XH_OPEN_LS = "vr_xh_open", XH_LOG_LS = "vr_xh_logopen";
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
 let XH_ALL = (() => { try{ return JSON.parse(localStorage.getItem(XH_LS) || "{}"); }catch(_){ return {}; } })();
@@ -1144,10 +1142,10 @@ function xhTsvEvents(){
   return xhLogList(XH_ALL[xhDate])
     .map(e => [xhDate, e.t, e.k, e.d].join("\t")).join("\n");
 }
-function xhWirePreview(){
-  const day = XH_ALL[xhDate] || {};
-  const span = day.start || day.end ? `${day.start || "?"}–${day.end || "?"}` : "未填時段";
-  $("xhWirePreview").textContent = `${xhDate} · ${span} · ${xhTotalCount(day)} 件`;
+// 📜 紀錄 鈕上帶筆數,不用展開就知道今天記了幾筆
+function xhLogBtn(day){
+  const n = xhLogList(day).length;
+  $("xhLogToggle").textContent = n ? `📜 紀錄 ${n}` : "📜 紀錄";
 }
 
 function setXhCount(key, val, debounce, noLog){
@@ -1230,8 +1228,8 @@ function xhRenderPanel(){
   $("xhStart").value = day2.start || "";
   $("xhEnd").value   = day2.end || "";
   xhRenderLog(day2);
+  xhLogBtn(day2);
   xhRefreshSummary();
-  xhWirePreview();
 }
 // 三欄一列:時間 / 項目 / 增減 —— 與 Worknum 報告 log 同一種排法
 const xhItemLabel = k => { const it = XH_SCHEMA.find(x => x.key === k); return it ? it.label : k; };
@@ -1250,6 +1248,13 @@ function xhInit(){
     const open = !$("xhBar").classList.contains("open");
     $("xhBar").classList.toggle("open", open);
     localStorage.setItem(XH_OPEN_LS, open ? "1" : "0");
+  };
+  // 逐筆紀錄獨立開關(預設收起,不佔畫面)
+  $("xhBar").classList.toggle("logopen", localStorage.getItem(XH_LOG_LS) === "1");
+  $("xhLogToggle").onclick = () => {
+    const open = !$("xhBar").classList.contains("logopen");
+    $("xhBar").classList.toggle("logopen", open);
+    localStorage.setItem(XH_LOG_LS, open ? "1" : "0");
   };
   $("xhDate").onchange = () => { xhDate = $("xhDate").value || ymd(new Date()); xhRenderPanel(); };
   // 清空會同步刪掉雲端該日節點 → 先把要刪的內容講清楚再確認
