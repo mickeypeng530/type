@@ -116,6 +116,12 @@
 - **Firebase API key 有 HTTP referrer 白名單**:`localhost` / `127.0.0.1` 被擋
   (`auth/requests-from-referer-...-are-blocked`),所以**雲端登入只能在 github.io 上測**,
   本機只能測本機模式。要在本機測雲端就得去 GCP Console 把 localhost 加進白名單。
+- **計數器可輸出給 Worknum**:面板下方有「在中興」起訖時間欄 + 「📋 複製給 Worknum」,
+  產生一列 TSV(`日期 起 訖 mriBase mriC mriNc ca ctC ctNc`,見 `~/Claude_Work/中興log_交換格式.md`)。
+  三條硬規則:①日期用當地日曆日(`ymd()` 走 getFullYear/Month/Date,**不可**用 toISOString —— 台灣早上 8 點前會給前一天)
+  ②**不傳金額**(單價是 Worknum `settings.xhPrices` 的責任,兩邊都存必漂移)
+  ③`XH_WIRE_KEYS` 是**線路順序**,不可改成跟著 `XH_SCHEMA` 的畫面順序走。
+  起訖時間存在當日物件的 `start`/`end`,不參與件數統計。
 - **LDCT 結節表的四個下拉可用數字鍵選**:游標在該格按 `N` = 第 N 個 option,`0` = 清空。
   四欄的第 0 項都是空白,所以「數字 = option 索引」是一條通用規則,不需要各欄一張對照表
   (位置 1-2 / 型態 1-5 / 肺葉 1-5,3 = RLL / 追蹤 1-3)。表頭有標數字範圍。
