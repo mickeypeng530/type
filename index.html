@@ -141,7 +141,12 @@
     background:var(--panel); border-top:1px solid var(--line); box-shadow:0 -4px 16px rgba(0,0,0,.35);}
   #xhInner{max-width:1360px; margin:0 auto; padding:8px 12px;}
   #xhSummaryRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-  #xhSummary{font-size:12.5px; color:var(--muted);}
+  #xhSummary{font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; min-width:0; flex:1 1 60px;}
+  /* 起訖時間跟計數鈕、日期同一排;壓到最小尺寸,讓步的是摘要文字不是這裡 */
+  #xhTime{display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;}
+  #xhTime input[type=time]{padding:4px 5px; font-size:12.5px; border-radius:7px; width:88px;}
+  #xhTime .dash{opacity:.5; font-size:12px;}
   #xhTotal{font-size:14px; color:var(--accent);}
   #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
   #xhBar.open #xhPanel{display:block;}
@@ -152,7 +157,6 @@
   .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
   #xhWireRow{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
-  #xhWireRow input[type=time]{padding:4px 6px; font-size:12.5px; border-radius:7px;}
   #xhWirePreview{font-family:ui-monospace,Consolas,monospace;}
   .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
     border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
@@ -429,8 +433,6 @@
       <div id="xhPanel">
         <div class="xhGrid" id="xhGrid"></div>
         <div class="xhGrid" id="xhWireRow">
-          <span class="xhItem"><label title="到中興的起訖時間;Worknum 靠它把這段標成「在中興」,不會被當成空檔">在中興</label>
-            <input type="time" id="xhStart"> <span style="opacity:.6">–</span> <input type="time" id="xhEnd"></span>
           <button class="ghost sm" id="xhWire" title="產生一列 TSV,到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 複製給 Worknum</button>
           <span class="hint" id="xhWirePreview"></span>
         </div>
@@ -438,8 +440,10 @@
       <div id="xhSummaryRow">
         <button class="ghost sm" id="xhToggle">🧮 計數</button>
         <input type="date" id="xhDate" style="padding:5px 8px; font-size:13px">
+        <span id="xhTime" title="到中興的起訖時間;Worknum 靠它把這段標成「在中興」,不會被當成空檔">
+          <input type="time" id="xhStart"><span class="dash">–</span><input type="time" id="xhEnd">
+        </span>
         <span id="xhSummary"></span>
-        <span style="flex:1"></span>
         <b id="xhTotal"></b>
         <button class="ghost sm" id="xhCopy">📋 複製</button>
         <button class="ghost sm" id="xhClear">🗑 清空</button>
@@ -452,13 +456,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260812.1"></script>
-<script src="phrases.js?v=20260812.1"></script>
-<script src="cx-templates.js?v=20260812.1"></script>
-<script src="matcher.js?v=20260812.1"></script>
-<script src="report-gen.js?v=20260812.1"></script>
-<script src="anatomy.js?v=20260812.1"></script>
-<script src="expander.js?v=20260812.1"></script>
+<script src="templates.js?v=20260813.1"></script>
+<script src="phrases.js?v=20260813.1"></script>
+<script src="cx-templates.js?v=20260813.1"></script>
+<script src="matcher.js?v=20260813.1"></script>
+<script src="report-gen.js?v=20260813.1"></script>
+<script src="anatomy.js?v=20260813.1"></script>
+<script src="expander.js?v=20260813.1"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1047,8 +1051,9 @@ function xhApplyRemote(val){
   }
   XH_ALL = remote;
   localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
-  // 使用者正在某個格子裡打字 → 只更新摘要,不重建 DOM(否則焦點會被搶走)
-  const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#xhPanel");
+  // 使用者正在某個格子裡打字 → 只更新摘要,不重建 DOM(否則焦點會被搶走)。
+  // 範圍是整條計數列(#xhInner):起訖時間欄在永遠可見的摘要列、不在面板裡,一樣要保護。
+  const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#xhInner");
   if(typing) xhRefreshSummary(); else xhRenderPanel();
 }
 window.xhApplyRemote = xhApplyRemote;
