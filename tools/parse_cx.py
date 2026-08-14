@@ -27,11 +27,15 @@ END_MARKERS = ["* For further details, please see the descriptions above."]
 #   group/variant  → 同 group 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(如 MRCP 打不打藥)
 #                    沒填 group 就自成一組。extras 在 UI 上以 group 為單位合併。
 META = [
-    dict(id="cx-brain-tof", name="MRI brain"),
+    dict(id="cx-brain-tof", name="MRI brain", group="cx-brain",
+         groupName="MRI brain", variant="沒打藥 (without)"),
+    dict(id="cx-brain-ce",  name="MRI brain", group="cx-brain",
+         groupName="MRI brain", variant="有打藥 (with/without)"),
     dict(id="cx-mrcp-wo",   name="MRI abdomen", group="cx-mrcp",
          groupName="MRI abdomen", variant="沒打藥 (without)"),
     dict(id="cx-mrcp-wc",   name="MRI abdomen", group="cx-mrcp",
          groupName="MRI abdomen", variant="有打藥 (with/without)"),
+    dict(id="cx-cspine",    name="MRI C spine"),
     dict(id="cx-lspine",    name="MRI L spine", anatomy=["ct-window-preset"]),
     dict(id="cx-wspine",    name="MRI whole spine"),
     dict(id="cx-wholebody", name="MRI whole body"),
@@ -104,12 +108,12 @@ def _msk_split(text, n_para):
         cur = []
         for line in para.split("\n"):
             if line.lstrip().startswith(">") and cur:
-                extras.append({"title": _title("\n".join(cur)), "text": "\n".join(cur).strip()})
+                extras.append(_extra("\n".join(cur)))
                 cur = [line]
             else:
                 cur.append(line)
         if any(l.strip() for l in cur):
-            extras.append({"title": _title("\n".join(cur)), "text": "\n".join(cur).strip()})
+            extras.append(_extra("\n".join(cur)))
     return body, extras
 
 
@@ -162,7 +166,7 @@ def split_extras(body):
         else:
             chunks = [para]
         for ch in chunks:
-            extras.append({"title": _title(ch), "text": ch.strip("\n")})
+            extras.append(_extra(ch))
     return main.strip("\n"), extras
 
 
@@ -176,6 +180,23 @@ def tail_blank_after_impression(body):
 def _title(chunk):
     first = chunk.split("\n")[0].strip().lstrip("> ").rstrip(".")
     return (first[:34] + "…") if len(first) > 34 else first
+
+
+# 選配句可自訂按鈕標籤:`> [標籤] 實際插入的句子`
+#   例:`> [Dixon 5~14%] Mild fatty liver.` → 按鈕寫「Dixon 5~14%」,插入「Mild fatty liver.」
+# 用在「按鈕上要顯示判讀依據、插入的卻是報告句」的情況(脂肪肝分級就是)。
+LABEL_RE = re.compile(r"^\s*>?\s*\[([^\]]+)\]\s*(.*)$")
+
+
+def _extra(chunk):
+    """把一段文字轉成 {title, text};支援 [標籤] 前綴。"""
+    chunk = chunk.strip("\n")
+    lines = chunk.split("\n")
+    m = LABEL_RE.match(lines[0])
+    if m:
+        rest = "\n".join([m.group(2)] + lines[1:]).strip("\n")
+        return {"title": m.group(1).strip(), "text": rest}
+    return {"title": _title(chunk), "text": chunk}
 
 
 def main():

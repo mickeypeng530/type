@@ -17,7 +17,7 @@
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
   設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
-- ✅ **中興模板頁**:13 組模板 = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
+- ✅ **中興模板頁**:14 組(16 個模板;brain 與 MRCP 各有打藥/不打藥兩變體) = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
   + **MSK MRI 6 組**(肩 / 膝 / 髖 / 肘 / 腕 / 踝,2026-08-09 加)。MSK 那 6 組**不寫在 `中興標準template.txt`**,
   而是 `tools/parse_cx.py` 的 `MSK` 清單指名從 `tools/library.json`(AHK 模板庫)撈,避免同一份文字兩處各改一半。
   **模板變體機制**:同 `group` 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(目前 MRCP 有「沒打藥 / 有打藥」兩版,
@@ -70,6 +70,8 @@
   - `snippets.html` — 轉址頁(舊書籤相容)
 - **中興模板**:source of truth = `../中興標準template.txt`(中興 7 組)+ `tools/library.json`(MSK 6 組),
   由 `tools/parse_cx.py` 解析成 `{id,name,body,extras[],generator,group,variant,anatomy[]}`;
+  選配句可寫成 `> [按鈕標籤] 實際插入的句子`(`LABEL_RE`/`_extra()`)——
+  按鈕上顯示判讀依據、插入的卻是報告句,脂肪肝分級就是這樣做的(`Dixon 5~14%` → `Mild fatty liver.`)。
   `generator:true` 的兩個(LDCT/Cardiac)由 report-gen.js 接手。
 - **縮寫展開**(2026-08-11):中興頁四個報告欄(`cxBody` / LDCT 兩欄 / Ca 兩欄)套用 `expander.js`,
   收錄 `phrases` 裡 **893 條 kind=inline**(905 條扣掉 2 條個資、1 條含換行、9 組大小寫重複)。

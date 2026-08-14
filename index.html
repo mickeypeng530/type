@@ -44,7 +44,7 @@
   /* 頁籤 */
   header.top{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
   nav.tabs{display:flex; border:1px solid var(--line); border-radius:11px; overflow:hidden; margin-bottom:12px;}
-  nav.tabs button{flex:1; border-radius:0; background:var(--panel2); color:var(--muted); font-size:14.5px; padding:12px 8px;}
+  nav.tabs button{flex:1; border-radius:0; background:var(--panel2); color:var(--muted); font-size:14.5px; padding:6px 8px;}
   nav.tabs button.on{background:var(--accent); color:#fff;}
   section.tab{display:none;} section.tab.on{display:block;}
 
@@ -298,7 +298,7 @@
         <div class="genIn">
           <div class="row">
             <div><label>比較日期(空=無比較)</label><input type="date" id="ldDate"></div>
-            <div><label>Series No</label><input type="text" id="ldSI" value="4" style="width:66px"></div>
+            <div><label>Series No</label><input type="text" id="ldSI" value="204" style="width:66px"></div>
             <div style="flex:1; min-width:230px"><label>Pleura</label>
               <select id="ldPleura" style="width:100%">
                 <option value="0">No pleural effusion, thickening, or pneumothorax.</option>
@@ -471,13 +471,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260814.2"></script>
-<script src="phrases.js?v=20260814.2"></script>
-<script src="cx-templates.js?v=20260814.2"></script>
-<script src="matcher.js?v=20260814.2"></script>
-<script src="report-gen.js?v=20260814.2"></script>
-<script src="anatomy.js?v=20260814.2"></script>
-<script src="expander.js?v=20260814.2"></script>
+<script src="templates.js?v=20260814.6"></script>
+<script src="phrases.js?v=20260814.6"></script>
+<script src="cx-templates.js?v=20260814.6"></script>
+<script src="matcher.js?v=20260814.6"></script>
+<script src="report-gen.js?v=20260814.6"></script>
+<script src="anatomy.js?v=20260814.6"></script>
+<script src="expander.js?v=20260814.6"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -561,6 +561,16 @@ function cxInit(){
 $("cxBar").addEventListener("click", e => {
   const b = e.target.closest("button[data-group]"); if(b) cxSelectGroup(b.dataset.group);
 });
+// 滑鼠在模板列上滾動 = 左右捲(這一列是 nowrap + overflow-x,瀏覽器預設只會捲頁面)。
+// 捲不動時不攔截,把事件交還給頁面,免得滑到這裡整頁就卡住。
+$("cxBar").addEventListener("wheel", e => {
+  const el = $("cxBar");
+  if(el.scrollWidth <= el.clientWidth + 1) return;
+  const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+  const before = el.scrollLeft;
+  el.scrollLeft += d;
+  if(el.scrollLeft !== before) e.preventDefault();   // 已經捲到底就讓頁面接手
+}, {passive: false});
 $("cxVariants").addEventListener("click", e => {
   const b = e.target.closest("button[data-id]"); if(!b) return;
   localStorage.setItem("vr_cxvar_" + b.dataset.group, b.dataset.id);
@@ -692,8 +702,13 @@ function ldRead(){
   };
 }
 $("ldAdd").onclick = ldAddRow;
-$("ldClear").onclick = () => { ldReset(); $("ldWarn").textContent="";
-  $("ldFindings").value=""; $("ldImpression").value=""; $("ldImgNos").value=""; $("ldRadsBadge").innerHTML=""; };
+$("ldClear").onclick = () => {
+  ldReset();
+  $("ldPleura").value = "0";              // 清空要回到預設,不然上一份的 pleura 會殘留到下一份
+  $("ldWarn").textContent = ""; $("ldWarn").className = "status";
+  $("ldFindings").value = ""; $("ldImpression").value = ""; $("ldImgNos").value = "";
+  $("ldRadsBadge").innerHTML = "";
+};
 $("ldRows").addEventListener("click", e => {
   if(e.target.closest(".ld-del")){ e.target.closest("tr").remove(); ldRenumber(); ldSyncWarn(); }
 });
