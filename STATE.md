@@ -17,7 +17,9 @@
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
   設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
-- ✅ **中興模板頁**:14 組(16 個模板;brain 與 MRCP 各有打藥/不打藥兩變體) = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
+- ✅ **中興模板頁**:14 組、22 個模板(brain 三變體、MRCP 兩變體、
+  MSK 五個部位各拆左右兩變體 —— 標題含 `left/right` 的在 parse 時由 `SIDE_RE` 換成單邊,
+  髖本來就沒有左右所以維持單一) = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
   + **MSK MRI 6 組**(肩 / 膝 / 髖 / 肘 / 腕 / 踝,2026-08-09 加)。MSK 那 6 組**不寫在 `中興標準template.txt`**,
   而是 `tools/parse_cx.py` 的 `MSK` 清單指名從 `tools/library.json`(AHK 模板庫)撈,避免同一份文字兩處各改一半。
   **模板變體機制**:同 `group` 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(目前 MRCP 有「沒打藥 / 有打藥」兩版,

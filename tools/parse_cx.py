@@ -73,6 +73,9 @@ MSK = [
 ]
 
 
+SIDE_RE = re.compile(r"\b(?:left/right|right/left)\b", re.I)
+
+
 def msk_entries():
     """把 library.json 裡的 MSK MRI 模板轉成中興頁用的結構。"""
     lib_file = HERE / "library.json"
@@ -89,13 +92,18 @@ def msk_entries():
                 continue
             body, extras = _msk_split(t["findings"].rstrip(), it.get("split", 0))
             body += "\n\nImpression:"      # AHK 原文沒有 impression 欄,報告一律要留這段
-            out.append({
-                "id": it["id"], "name": g["groupName"], "generator": False,
-                "group": g["group"], "groupName": g["groupName"],
-                "variant": it.get("variant", ""),
-                "anatomy": g["anatomy"],
-                "body": tail_blank_after_impression(body), "extras": extras,
-            })
+            base = dict(name=g["groupName"], generator=False,
+                        group=g["group"], groupName=g["groupName"], anatomy=g["anatomy"],
+                        extras=extras)
+            # 標題含 "left/right" 的部位 → 拆成左右兩個子頁籤,免得每次手動刪斜線
+            # (髖是 "MRI of the hip",本來就沒有左右,維持單一)
+            if SIDE_RE.search(body):
+                for suffix, side, label in (("rt", "right", "右"), ("lt", "left", "左")):
+                    out.append(dict(base, id=f'{it["id"]}-{suffix}', variant=label,
+                                    body=tail_blank_after_impression(SIDE_RE.sub(side, body))))
+            else:
+                out.append(dict(base, id=it["id"], variant=it.get("variant", ""),
+                                body=tail_blank_after_impression(body)))
     return out
 
 
