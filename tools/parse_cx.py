@@ -27,9 +27,11 @@ END_MARKERS = ["* For further details, please see the descriptions above."]
 #   group/variant  → 同 group 的多個區塊會併成上排一顆按鈕 + 內層子頁籤(如 MRCP 打不打藥)
 #                    沒填 group 就自成一組。extras 在 UI 上以 group 為單位合併。
 META = [
-    dict(id="cx-brain-tof", name="MRI brain", group="cx-brain",
-         groupName="MRI brain", variant="沒打藥 (without)"),
-    dict(id="cx-brain-ce",  name="MRI brain", group="cx-brain",
+    dict(id="cx-brain-tofb", name="MRI brain", group="cx-brain",
+         groupName="MRI brain", variant="沒打藥"),
+    dict(id="cx-brain-tof",  name="MRI brain", group="cx-brain",
+         groupName="MRI brain", variant="沒打藥 + neck TOF"),
+    dict(id="cx-brain-ce",   name="MRI brain", group="cx-brain",
          groupName="MRI brain", variant="有打藥 (with/without)"),
     dict(id="cx-mrcp-wo",   name="MRI abdomen", group="cx-mrcp",
          groupName="MRI abdomen", variant="沒打藥 (without)"),

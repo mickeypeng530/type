@@ -461,7 +461,6 @@
         </span>
         <span id="xhSummary"></span>
         <b id="xhTotal"></b>
-        <button class="ghost sm" id="xhCopy" title="人看的摘要:日期 + 各項件數">📋 摘要</button>
         <button class="ghost sm" id="xhWire" title="給 Worknum:第一列是彙總(9 欄:日期 起 訖 + 六項件數),之後每列一筆逐筆事件(4 欄:日期 時間 項目 增減)。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 給 Worknum</button>
         <button class="ghost sm" id="xhClear">🗑 清空</button>
         <span class="status" id="xhStatus" style="margin:0; min-height:0"></span>
@@ -473,13 +472,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260814.7"></script>
-<script src="phrases.js?v=20260814.7"></script>
-<script src="cx-templates.js?v=20260814.7"></script>
-<script src="matcher.js?v=20260814.7"></script>
-<script src="report-gen.js?v=20260814.7"></script>
-<script src="anatomy.js?v=20260814.7"></script>
-<script src="expander.js?v=20260814.7"></script>
+<script src="templates.js?v=20260814.10"></script>
+<script src="phrases.js?v=20260814.10"></script>
+<script src="cx-templates.js?v=20260814.10"></script>
+<script src="matcher.js?v=20260814.10"></script>
+<script src="report-gen.js?v=20260814.10"></script>
+<script src="anatomy.js?v=20260814.10"></script>
+<script src="expander.js?v=20260814.10"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -660,7 +659,12 @@ $("cxExtras").addEventListener("click", e => {
   const b = e.target.closest("button[data-i]"); if(!b || !cxCur) return;
   const txt = cxExtrasCur[+b.dataset.i].text;
   const ta = $("cxBody"), p = ta.selectionStart ?? ta.value.length;
-  const ins = (p > 0 && ta.value[p-1] !== "\n" ? "\n" : "") + txt + "\n";
+  // 整行型的選配句(以 "> " 開頭或多行)自成一行;短句型(如「Mild fatty liver.」)
+  // 直接插在游標處,不硬加換行 —— 那種是要接在 "> Liver: " 後面的。
+  const ownLine = /^\s*>/.test(txt) || txt.includes("\n");
+  const ins = ownLine
+    ? (p > 0 && ta.value[p-1] !== "\n" ? "\n" : "") + txt + "\n"
+    : txt;
   ta.value = ta.value.slice(0,p) + ins + ta.value.slice(p);
   ta.selectionStart = ta.selectionEnd = p + ins.length;
   ta.focus(); ta.dispatchEvent(new Event("input"));
@@ -1311,12 +1315,7 @@ function xhInit(){
     flash($("xhStatus"), (await copyText(xhTsvAll()))
       ? `已複製:彙總 1 列 + 逐筆 ${nev} 列 → 到 Worknum 按 📥 匯入` : "複製失敗");
   };
-  $("xhCopy").onclick = async () => {
-    const day = XH_ALL[xhDate], n = xhTotalCount(day);
-    const txt = n ? `${xhDate} ${xhBreakdownText(day)}(共 ${n} 件)` : `${xhDate} 無`;
-    flash($("xhStatus"), (await copyText(txt)) ? "已複製 ✓" : "複製失敗");
-  };
-  xhRenderPanel();
+    xhRenderPanel();
 }
 
 $("loginVer").textContent = APP_VERSION;

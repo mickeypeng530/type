@@ -39,20 +39,39 @@ function expCase(typed, out){
   return out;
 }
 
-/** 試著展開游標前的縮寫。end 為 true 代表待會還會補上結尾字元。
- *  回傳 {abbr, text} 或 null(沒展開)。 */
-function expandBefore(ta){
-  if(!EXP.on || !EXP.map.size) return null;
-  const pos = ta.selectionStart;
-  if(pos !== ta.selectionEnd || pos === 0) return null;
-  const head = ta.value.slice(Math.max(0, pos - EXP.maxLen), pos);
+/** 找出 value 中結束於 pos 的最長可展開縮寫;沒有就回 null。 */
+function expMatch(value, pos){
   // 最長匹配:194 條縮寫本身以 "/" 結尾(lul/、panc/),用「抓一個單字」的寫法會全失效
+  const head = value.slice(Math.max(0, pos - EXP.maxLen), pos);
   for(let len = head.length; len >= 1; len--){
     const typed = head.slice(head.length - len);
     const rep = EXP.map.get(typed.toLowerCase());
     if(rep === undefined) continue;
-    const prev = ta.value[pos - len - 1];
+    const prev = value[pos - len - 1];
     if(prev && EXP_WORD.test(prev)) continue;    // 字中間不觸發(salt 的 lt 不算)
+    return {len, typed, rep};
+  }
+  return null;
+}
+
+/** 試著展開游標前的縮寫;endChar = 使用者剛按下、待會才會插入的結尾字元。
+ *  回傳 {abbr, text} 或 null(沒展開)。 */
+function expandBefore(ta, endChar){
+  if(!EXP.on || !EXP.map.size) return null;
+  const pos = ta.selectionStart;
+  if(pos !== ta.selectionEnd || pos === 0) return null;
+  const m = expMatch(ta.value, pos);
+  if(m){
+    /* ⚠ 結尾字元本身可能是更長縮寫的一部分:`/` 既是結尾字元、也是 47 組縮寫的結尾
+       (bd = bile duct、bd/ = bulging disc.)。若不先看一眼,打 bd/ 會在按下 `/` 的當下
+       就把 bd 展成 bile duct,永遠打不出 bd/。→ 加上這個字元後仍能匹配到更長的縮寫,
+       就先不展開,等下一個結尾字元再說。 */
+    if(endChar && endChar.length === 1){
+      const probe = ta.value.slice(0, pos) + endChar + ta.value.slice(pos);
+      const longer = expMatch(probe, pos + 1);
+      if(longer && longer.len > m.len) return null;
+    }
+    const {len, typed, rep} = m;
     const out = expCase(typed, rep);
     ta.setSelectionRange(pos - len, pos);
     let ok = false;
@@ -75,7 +94,8 @@ function expanderAttach(ta){
     if(e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
     const isEnd = e.key === "Enter" || (e.key.length === 1 && EXP_END.has(e.key));
     if(!isEnd) return;
-    expandBefore(ta);          // 不 preventDefault:結尾字元照常打進去(同 AHK)
+    // 把待輸入的結尾字元一起交給展開器判斷(`/` 可能是更長縮寫的一部分)
+    expandBefore(ta, e.key === "Enter" ? "" : e.key);   // 不 preventDefault:結尾字元照常打進去(同 AHK)
   });
 }
 
