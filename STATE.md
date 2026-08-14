@@ -170,6 +170,10 @@
   不計入 scrollWidth,所以量到「沒被切」其實被切了。
   正確驗法:設 `width:auto` 看瀏覽器選多寬(本例 116px),那才是真正需要的寬度。
   → 用 `width:auto; min-width:…; flex:0 0 auto`,讓旁邊的彈性元素(摘要文字)去讓步。
+- **`voiceReport/counter` 底下不是只有日期**:快捷鍵小抄借住 `counter/shortcuts`
+  (rules 只把 `counter` 這一支開放給共用帳號寫,不必為了小抄改 rules)。
+  因此 `xhApplyRemote` 只把**長得像 `YYYY-MM-DD` 的 key** 當計數資料,其餘另外處理 ——
+  否則 shortcuts 會被當成一天,污染件數統計。
 - **在 textarea 裡程式化改字,一律用 `document.execCommand("insertText")`**:直接寫 `.value` 或
   `setRangeText()` 會把瀏覽器的 undo stack 清掉,使用者按 Ctrl+Z 救不回被自動改掉的字。
   縮寫展開就是靠這點才敢自動改字。(`expander.js`)

@@ -174,6 +174,13 @@
   #xhLogRow .empty{color:var(--muted); opacity:.7;}
   /* 逐筆紀錄自成一段,由 📜 紀錄 獨立開關 —— 跟 🧮 計數 面板互不牽連 */
   #xhLogWrap{display:none;} #xhBar.logopen #xhLogWrap{display:block;}
+  /* PACS 快捷鍵小抄:同樣獨立開關,可就地編輯 */
+  #xhKeyWrap{display:none;} #xhBar.keyopen #xhKeyWrap{display:block;}
+  #xhKeyWrap{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
+  #xhKeyView{flex:1; margin:0; white-space:pre-wrap; font-size:13px; line-height:1.6;
+    font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--text); max-height:170px; overflow:auto;}
+  #xhKeyEdit{flex:1; min-height:120px; font-size:13px; line-height:1.6;
+    font-family:ui-monospace,Menlo,Consolas,monospace;}
   .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
     border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
@@ -452,9 +459,17 @@
         <div class="xhGrid" id="xhGrid"></div>
       </div>
       <div id="xhLogWrap"><div id="xhLogRow"></div></div>
+      <div id="xhKeyWrap">
+        <div class="row" style="align-items:flex-start; gap:9px">
+          <pre id="xhKeyView"></pre>
+          <textarea id="xhKeyEdit" spellcheck="false" style="display:none"></textarea>
+          <button class="ghost sm" id="xhKeyEditBtn">✏️ 編輯</button>
+        </div>
+      </div>
       <div id="xhSummaryRow">
         <button class="ghost sm" id="xhToggle">🧮 計數</button>
-        <button class="ghost sm" id="xhLogToggle" title="逐筆時間紀錄(按一次展開/收起)">📜 紀錄</button>
+        <button class="ghost sm" id="xhLogToggle" title="逐筆時間紀錄（按一次展開/收起）">📜 紀錄</button>
+        <button class="ghost sm" id="xhKeyToggle" title="PACS 快捷鍵小抄（按一次展開/收起，可直接編輯）">⌨️ 快捷鍵</button>
         <input type="date" id="xhDate" style="padding:5px 8px; font-size:13px">
         <span id="xhTime" title="到中興的起訖時間;Worknum 靠它把這段標成「在中興」,不會被當成空檔">
           <input type="time" id="xhStart"><span class="dash">–</span><input type="time" id="xhEnd">
@@ -472,13 +487,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260814.11"></script>
-<script src="phrases.js?v=20260814.11"></script>
-<script src="cx-templates.js?v=20260814.11"></script>
-<script src="matcher.js?v=20260814.11"></script>
-<script src="report-gen.js?v=20260814.11"></script>
-<script src="anatomy.js?v=20260814.11"></script>
-<script src="expander.js?v=20260814.11"></script>
+<script src="templates.js?v=20260814.12"></script>
+<script src="phrases.js?v=20260814.12"></script>
+<script src="cx-templates.js?v=20260814.12"></script>
+<script src="matcher.js?v=20260814.12"></script>
+<script src="report-gen.js?v=20260814.12"></script>
+<script src="anatomy.js?v=20260814.12"></script>
+<script src="expander.js?v=20260814.12"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1053,6 +1068,14 @@ const XH_SCHEMA = [
 ];
 const XH_BASE_N = 10;
 const XH_LS = "vr_xh", XH_OPEN_LS = "vr_xh_open", XH_LOG_LS = "vr_xh_logopen";
+const XH_KEY_LS = "vr_xh_keyopen", XH_KEYS_LS = "vr_xh_keys";
+// PACS 快捷鍵小抄的預設內容(使用者可在畫面上直接改;改過就以自己的版本為準)
+const XH_KEYS_DEFAULT = [
+  "9111",
+  "Control X  存 key image",
+  "Control L  對位線",
+  "E  測量",
+].join("\n");
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
 let XH_ALL = (() => { try{ return JSON.parse(localStorage.getItem(XH_LS) || "{}"); }catch(_){ return {}; } })();
@@ -1090,9 +1113,15 @@ function xhApplyRemote(val){
       return;
     }
   }
+  // counter 節點底下除了日期,還放了 shortcuts(快捷鍵小抄)——
+  // 只有 counter 這個子樹開放給共用帳號寫,所以小抄借住這裡,不用動 RTDB rules。
+  // 這裡把「長得像日期的 key」才當成計數資料,其餘另外處理。
+  if(typeof remote.shortcuts === "string") xhKeysApplyRemote(remote.shortcuts);
+  const days = {};
+  for(const k in remote) if(/^\d{4}-\d{2}-\d{2}$/.test(k)) days[k] = remote[k];
   // 本機還有沒寫出去的改動(debounce 中)→ 保住當天那一包,別被回聲洗掉
   const mine = xhDirty ? XH_ALL[xhDate] : null;
-  XH_ALL = remote;
+  XH_ALL = days;
   if(mine) XH_ALL[xhDate] = mine;
   localStorage.setItem(XH_LS, JSON.stringify(XH_ALL));
   // 使用者正在某個格子裡打字 → 只更新摘要,不重建 DOM(否則焦點會被搶走)。
@@ -1278,7 +1307,50 @@ function xhRenderLog(day){
         + `<span class="d">${e.d > 0 ? "+" : ""}${e.d}</span></div>`).join("")
     : `<div class="empty">尚無逐筆紀錄 —— 按 ＋ 或改數字就會記下當下時間</div>`;
 }
+/* ── PACS 快捷鍵小抄 ────────────────────────────────────────────────
+   純文字一段,可就地編輯。存 localStorage,同時寫 RTDB `counter/shortcuts`
+   (借住 counter 子樹:rules 只把 counter 開放給共用帳號寫,不必為了這個改 rules)。 */
+let xhKeys = localStorage.getItem(XH_KEYS_LS);
+if(xhKeys === null) xhKeys = XH_KEYS_DEFAULT;
+function xhKeysRender(){
+  $("xhKeyView").textContent = xhKeys;
+}
+function xhKeysApplyRemote(text){
+  if(text === xhKeys) return;
+  xhKeys = text;
+  localStorage.setItem(XH_KEYS_LS, xhKeys);
+  if($("xhKeyEdit").style.display === "none") xhKeysRender();   // 正在編輯就別蓋掉
+}
+function xhKeysSetEditing(on){
+  $("xhKeyEdit").style.display = on ? "" : "none";
+  $("xhKeyView").style.display = on ? "none" : "";
+  $("xhKeyEditBtn").textContent = on ? "✓ 儲存" : "✏️ 編輯";
+  if(on){ $("xhKeyEdit").value = xhKeys; $("xhKeyEdit").focus(); }
+}
+function xhKeysInit(){
+  xhKeysRender();
+  $("xhBar").classList.toggle("keyopen", localStorage.getItem(XH_KEY_LS) === "1");
+  $("xhKeyToggle").onclick = () => {
+    const open = !$("xhBar").classList.contains("keyopen");
+    $("xhBar").classList.toggle("keyopen", open);
+    localStorage.setItem(XH_KEY_LS, open ? "1" : "0");
+    if(!open) xhKeysSetEditing(false);
+  };
+  $("xhKeyEditBtn").onclick = () => {
+    const editing = $("xhKeyEdit").style.display !== "none";
+    if(editing){
+      xhKeys = $("xhKeyEdit").value;
+      localStorage.setItem(XH_KEYS_LS, xhKeys);
+      if(window.xhKeysCloudSave) window.xhKeysCloudSave(xhKeys);
+      xhKeysRender();
+      flash($("xhStatus"), "快捷鍵已存 ✓");
+    }
+    xhKeysSetEditing(!editing);
+  };
+}
+
 function xhInit(){
+  xhKeysInit();
   $("xhDate").value = xhDate;
   $("xhBar").classList.toggle("open", localStorage.getItem(XH_OPEN_LS) === "1");
   $("xhToggle").onclick = () => {
@@ -1382,6 +1454,8 @@ if(typeof TEMPLATES === "undefined"){          // 線上版才啟動 Firebase
       //   要刪的欄位得明寫 null —— RTDB 的 update 忽略 undefined。
       // push(ref) 不帶值 = 只產生 key、不寫入。用它讓逐筆事件跨裝置照時間排序。
       window.xhLogKey = () => push(ref(fbDb, "voiceReport/counter")).key;
+      // 快捷鍵小抄借住 counter 子樹(rules 只開放這一支給共用帳號寫)
+      window.xhKeysCloudSave = text => set(ref(fbDb, "voiceReport/counter/shortcuts"), text);
       window.xhCloudSave = (date, day, pendingLog) => {
         const node = ref(fbDb, "voiceReport/counter/" + date);
         if(!day) return set(node, null);                    // 整天清空(連 log 一起)
