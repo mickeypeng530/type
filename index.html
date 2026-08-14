@@ -178,7 +178,9 @@
     border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
   .xhItem input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-  .xhItem button{padding:3px 8px; font-size:13.5px; line-height:1; border-radius:7px;}
+  /* 計數列的按鈕左右留白壓緊(只縮這一條列,不動全站的 button.sm) */
+  .xhItem button{padding:3px 5px; font-size:13.5px; line-height:1; border-radius:7px;}
+  #xhBar button.sm{padding:6px 7px;}
   .xhBaseItem{padding:2px 7px; border:1px solid var(--line); border-radius:8px; background:var(--panel2);}
   .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
   .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
@@ -471,13 +473,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260814.6"></script>
-<script src="phrases.js?v=20260814.6"></script>
-<script src="cx-templates.js?v=20260814.6"></script>
-<script src="matcher.js?v=20260814.6"></script>
-<script src="report-gen.js?v=20260814.6"></script>
-<script src="anatomy.js?v=20260814.6"></script>
-<script src="expander.js?v=20260814.6"></script>
+<script src="templates.js?v=20260814.7"></script>
+<script src="phrases.js?v=20260814.7"></script>
+<script src="cx-templates.js?v=20260814.7"></script>
+<script src="matcher.js?v=20260814.7"></script>
+<script src="report-gen.js?v=20260814.7"></script>
+<script src="anatomy.js?v=20260814.7"></script>
+<script src="expander.js?v=20260814.7"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
