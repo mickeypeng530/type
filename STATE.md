@@ -170,6 +170,10 @@
   不計入 scrollWidth,所以量到「沒被切」其實被切了。
   正確驗法:設 `width:auto` 看瀏覽器選多寬(本例 116px),那才是真正需要的寬度。
   → 用 `width:auto; min-width:…; flex:0 0 auto`,讓旁邊的彈性元素(摘要文字)去讓步。
+- **固定在底部的計數列會蓋住頁面內容**:面板展開後高度從 50px 變到 250px+,
+  `body` 的 `padding-bottom` 要跟著長(`xhFitBody()` = 計數列高度 + 14)。
+  ⚠️ **不能只靠 ResizeObserver** —— 它的回呼綁在 rendering step,頁面沒在繪製時不一定送達
+  (在無頭/背景分頁實測就是不觸發)。每個開關仍各自呼叫一次,RO 只當保險。
 - **`voiceReport/counter` 底下不是只有日期**:快捷鍵小抄借住 `counter/shortcuts`
   (rules 只把 `counter` 這一支開放給共用帳號寫,不必為了小抄改 rules)。
   因此 `xhApplyRemote` 只把**長得像 `YYYY-MM-DD` 的 key** 當計數資料,其餘另外處理 ——

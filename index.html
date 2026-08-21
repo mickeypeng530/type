@@ -13,7 +13,9 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;}
-  body{max-width:1360px; margin:0 auto; padding:12px 12px 80px;}   /* 下方留給固定計數器列 */
+  /* 下方留給固定計數器列。80px 只是收合時的保底值,實際高度由 xhFitBody() 依
+     計數列當下高度動態設定 —— 展開計數/紀錄/快捷鍵時才不會蓋住選配句那些按鈕。 */
+  body{max-width:1360px; margin:0 auto; padding:12px 12px 80px;}
   h1{font-size:17px; margin:2px 0 10px; font-weight:600;}
   h1 small{color:var(--muted); font-weight:400; font-size:12px;}
   label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
@@ -155,8 +157,8 @@
   #xhBar.open #xhPanel{display:block;}
   /* 六個項目排成一行(第二行是下面的摘要列)。尺寸壓緊以塞進單行;
      真的塞不下才 wrap,不硬性斷欄。 */
-  .xhGrid{display:flex; flex-wrap:wrap; gap:6px 11px; align-items:center;}
-  .xhItem{display:flex; gap:3px; align-items:center; font-size:12.5px;}
+  .xhGrid{display:flex; flex-wrap:wrap; gap:6px 7px; align-items:center;}
+  .xhItem{display:flex; gap:2px; align-items:center; font-size:12.5px;}
   .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
   /* 逐筆 log:三欄一列(時間 / 項目 / 增減),對齊 Worknum 報告 log 的排法。
@@ -171,6 +173,10 @@
   #xhLogRow .d{font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--accent);
     text-align:right; min-width:34px;}
   #xhLogRow .lg.neg .d{color:var(--err);}
+  /* 按錯又按回來的配對:括號 + 淡化,一眼看得出不算數 */
+  #xhLogRow .lg.cancel{opacity:.45;}
+  #xhLogRow .lg.cancel .k, #xhLogRow .lg.cancel .d{text-decoration:line-through;}
+  #xhLogRow .lg.cancel .d{color:var(--muted);}
   #xhLogRow .empty{color:var(--muted); opacity:.7;}
   /* 逐筆紀錄自成一段,由 📜 紀錄 獨立開關 —— 跟 🧮 計數 面板互不牽連 */
   #xhLogWrap{display:none;} #xhBar.logopen #xhLogWrap{display:block;}
@@ -181,14 +187,14 @@
     font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--text); max-height:170px; overflow:auto;}
   #xhKeyEdit{flex:1; min-height:120px; font-size:13px; line-height:1.6;
     font-family:ui-monospace,Menlo,Consolas,monospace;}
-  .xhItem input[type=number]{width:40px; text-align:center; padding:4px 2px; font-size:13.5px;
+  .xhItem input[type=number]{width:34px; text-align:center; padding:4px 1px; font-size:13.5px;
     border-radius:7px; appearance:textfield; -moz-appearance:textfield;}
   .xhItem input[type=number]::-webkit-outer-spin-button,
   .xhItem input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
   /* 計數列的按鈕左右留白壓緊(只縮這一條列,不動全站的 button.sm) */
-  .xhItem button{padding:3px 5px; font-size:13.5px; line-height:1; border-radius:7px;}
+  .xhItem button{padding:3px 4px; font-size:13.5px; line-height:1; border-radius:7px; min-width:20px;}
   #xhBar button.sm{padding:6px 7px;}
-  .xhBaseItem{padding:2px 7px; border:1px solid var(--line); border-radius:8px; background:var(--panel2);}
+  .xhBaseItem{padding:2px 5px; border:1px solid var(--line); border-radius:8px; background:var(--panel2);}
   .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
   .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
   .xhBaseItem.done .xhProg{color:var(--ok); font-weight:700;}
@@ -487,13 +493,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260814.12"></script>
-<script src="phrases.js?v=20260814.12"></script>
-<script src="cx-templates.js?v=20260814.12"></script>
-<script src="matcher.js?v=20260814.12"></script>
-<script src="report-gen.js?v=20260814.12"></script>
-<script src="anatomy.js?v=20260814.12"></script>
-<script src="expander.js?v=20260814.12"></script>
+<script src="templates.js?v=20260821.4"></script>
+<script src="phrases.js?v=20260821.4"></script>
+<script src="cx-templates.js?v=20260821.4"></script>
+<script src="matcher.js?v=20260821.4"></script>
+<script src="report-gen.js?v=20260821.4"></script>
+<script src="anatomy.js?v=20260821.4"></script>
+<script src="expander.js?v=20260821.4"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -725,7 +731,8 @@ function ldRead(){
 $("ldAdd").onclick = ldAddRow;
 $("ldClear").onclick = () => {
   ldReset();
-  $("ldPleura").value = "0";              // 清空要回到預設,不然上一份的 pleura 會殘留到下一份
+  $("ldPleura").value = "0";              // 清空要回到預設,不然上一份的殘留到下一份
+  $("ldDate").value = "";                 // 比較日期同理
   $("ldWarn").textContent = ""; $("ldWarn").className = "status";
   $("ldFindings").value = ""; $("ldImpression").value = ""; $("ldImgNos").value = "";
   $("ldRadsBadge").innerHTML = "";
@@ -1075,6 +1082,7 @@ const XH_KEYS_DEFAULT = [
   "Control X  存 key image",
   "Control L  對位線",
   "E  測量",
+  "Window:  F2 bone   F3 lung   F4 soft",
 ].join("\n");
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
@@ -1150,9 +1158,28 @@ addEventListener("visibilitychange", () => { if(document.hidden) xhSaveNow(); })
    entry = { t:"HH:MM"(當地時間), k:項目 key, d:增減量 }。
    ± 兩個方向都記,所以 log 可以完整還原件數;按錯再按回來 = +1 與 −1 兩筆,不需要刪除功能。 */
 const xhLog = day => (day && day.log) || {};
-const xhLogList = day => Object.entries(xhLog(day))
-  .map(([id, e]) => ({id, ...e}))
-  .sort((a, b) => (a.t || "").localeCompare(b.t || "") || a.id.localeCompare(b.id));
+/* 依時間排序,並標出「按錯又按回來」的抵銷配對:
+   一筆負數往前找同項目、同量值、尚未配對的正數 → 兩筆都標 cancel。
+   這種配對在畫面上以括號呈現、不計入筆數、也不送給 Worknum
+   (兩筆相加為 0,拿掉不影響「逐筆總和 == 彙總件數」這個不變式)。 */
+function xhLogList(day){
+  const list = Object.entries(xhLog(day))
+    .map(([id, e]) => ({id, ...e}))
+    .sort((a, b) => (a.t || "").localeCompare(b.t || "") || a.id.localeCompare(b.id));
+  for(let i = 0; i < list.length; i++){
+    const neg = list[i];
+    if(neg.d >= 0 || neg.cancel) continue;
+    for(let j = i - 1; j >= 0; j--){
+      const pos = list[j];
+      if(pos.k === neg.k && pos.d === -neg.d && !pos.cancel){
+        pos.cancel = neg.cancel = true;
+        break;
+      }
+    }
+  }
+  return list;
+}
+const xhLogReal = day => xhLogList(day).filter(e => !e.cancel);
 
 /* ⚠ 逐筆事件**不可以**在這裡直接寫雲端。RTDB 寫入會立刻觸發本地 onValue 回聲,
    而 xhApplyRemote 是「整包取代 XH_ALL」—— 回聲會在 setXhCount 改到一半時打進來,
@@ -1199,7 +1226,7 @@ function setXhTime(which, val){
    與彙總那列(9 欄)靠欄數區分。不變式:同一天逐筆各 key 的 d 總和 == 彙總列的件數,
    所以負數(按錯修正)一定要一起送,不能只挑正的。 */
 function xhTsvEvents(){
-  return xhLogList(XH_ALL[xhDate])
+  return xhLogReal(XH_ALL[xhDate])
     .map(e => [xhDate, e.t, e.k, e.d].join("\t")).join("\n");
 }
 /* 一次匯出:第一列彙總(9 欄),之後每列一筆逐筆(4 欄)。
@@ -1210,7 +1237,7 @@ function xhTsvAll(){
 }
 // 📜 紀錄 鈕上帶筆數,不用展開就知道今天記了幾筆
 function xhLogBtn(day){
-  const n = xhLogList(day).length;
+  const n = xhLogReal(day).length;      // 抵銷掉的按錯配對不計入筆數
   $("xhLogToggle").textContent = n ? `📜 紀錄 ${n}` : "📜 紀錄";
 }
 
@@ -1296,15 +1323,17 @@ function xhRenderPanel(){
   xhRenderLog(day2);
   xhLogBtn(day2);
   xhRefreshSummary();
+  xhFitBody();                 // log 變長 / 變短都會改變計數列高度
 }
 // 三欄一列:時間 / 項目 / 增減 —— 與 Worknum 報告 log 同一種排法
 const xhItemLabel = k => { const it = XH_SCHEMA.find(x => x.key === k); return it ? it.label : k; };
 function xhRenderLog(day){
   const list = xhLogList(day);
   $("xhLogRow").innerHTML = list.length
-    ? list.map(e => `<div class="lg${e.d < 0 ? " neg" : ""}"><span class="t">${esc(e.t)}</span>`
-        + `<span class="k">${esc(xhItemLabel(e.k))}</span>`
-        + `<span class="d">${e.d > 0 ? "+" : ""}${e.d}</span></div>`).join("")
+    ? list.map(e => `<div class="lg${e.d < 0 ? " neg" : ""}${e.cancel ? " cancel" : ""}">`
+        + `<span class="t">${esc(e.t)}</span>`
+        + `<span class="k">${e.cancel ? "(" : ""}${esc(xhItemLabel(e.k))}${e.cancel ? ")" : ""}</span>`
+        + `<span class="d">${e.cancel ? "(" : ""}${e.d > 0 ? "+" : ""}${e.d}${e.cancel ? ")" : ""}</span></div>`).join("")
     : `<div class="empty">尚無逐筆紀錄 —— 按 ＋ 或改數字就會記下當下時間</div>`;
 }
 /* ── PACS 快捷鍵小抄 ────────────────────────────────────────────────
@@ -1322,6 +1351,7 @@ function xhKeysApplyRemote(text){
   if($("xhKeyEdit").style.display === "none") xhKeysRender();   // 正在編輯就別蓋掉
 }
 function xhKeysSetEditing(on){
+  setTimeout(xhFitBody, 0);    // 編輯框比檢視高,切換後要重算留白
   $("xhKeyEdit").style.display = on ? "" : "none";
   $("xhKeyView").style.display = on ? "none" : "";
   $("xhKeyEditBtn").textContent = on ? "✓ 儲存" : "✏️ 編輯";
@@ -1335,6 +1365,7 @@ function xhKeysInit(){
     $("xhBar").classList.toggle("keyopen", open);
     localStorage.setItem(XH_KEY_LS, open ? "1" : "0");
     if(!open) xhKeysSetEditing(false);
+    xhFitBody();
   };
   $("xhKeyEditBtn").onclick = () => {
     const editing = $("xhKeyEdit").style.display !== "none";
@@ -1349,14 +1380,31 @@ function xhKeysInit(){
   };
 }
 
+/* 計數列是 position:fixed 貼在底部,展開面板後會蓋住頁面內容(選配句那些按鈕)。
+   → 把 body 的下方留白綁在計數列的實際高度上,展開多少就讓多少。
+   用 ResizeObserver 而不是在每個開關裡手動呼叫:面板內容變高(log 變長、小抄多幾行)
+   也會自動跟上,不會有人新增面板時忘了補一行。 */
+function xhFitBody(){
+  document.body.style.paddingBottom = ($("xhBar").offsetHeight + 14) + "px";
+}
+function xhFitBodyInit(){
+  xhFitBody();
+  // ResizeObserver 當保險(面板內容自己變高時),但**不能只靠它** ——
+  // 它的回呼綁在 rendering step 上,頁面沒在繪製時不一定送達。每個開關仍各自呼叫一次。
+  if(window.ResizeObserver) new ResizeObserver(xhFitBody).observe($("xhBar"));
+  addEventListener("resize", xhFitBody);
+}
+
 function xhInit(){
   xhKeysInit();
+  xhFitBodyInit();
   $("xhDate").value = xhDate;
   $("xhBar").classList.toggle("open", localStorage.getItem(XH_OPEN_LS) === "1");
   $("xhToggle").onclick = () => {
     const open = !$("xhBar").classList.contains("open");
     $("xhBar").classList.toggle("open", open);
     localStorage.setItem(XH_OPEN_LS, open ? "1" : "0");
+    xhFitBody();
   };
   // 逐筆紀錄獨立開關(預設收起,不佔畫面)
   $("xhBar").classList.toggle("logopen", localStorage.getItem(XH_LOG_LS) === "1");
@@ -1364,13 +1412,14 @@ function xhInit(){
     const open = !$("xhBar").classList.contains("logopen");
     $("xhBar").classList.toggle("logopen", open);
     localStorage.setItem(XH_LOG_LS, open ? "1" : "0");
+    xhFitBody();
   };
   $("xhDate").onchange = () => { xhDate = $("xhDate").value || ymd(new Date()); xhRenderPanel(); };
   // 清空會同步刪掉雲端該日節點 → 先把要刪的內容講清楚再確認
   $("xhClear").onclick = () => {
     const day = XH_ALL[xhDate], n = xhTotalCount(day);
     if(!n && !(day && (day.start || day.end))){ flash($("xhStatus"), "本日沒有計數"); return; }
-    const nlog = xhLogList(day).length;
+    const nlog = xhLogReal(day).length;
     if(!confirm(`清空 ${xhDate} 的計數?\n\n${xhBreakdownText(day)}(共 ${n} 件)${nlog ? `\n逐筆時間紀錄 ${nlog} 筆也會一起刪除` : ``}\n\n會一併從雲端刪除,無法復原。`)) return;
     delete XH_ALL[xhDate];                 // 連同 start/end 一起清掉
     xhSaveNow();

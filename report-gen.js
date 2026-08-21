@@ -71,7 +71,10 @@ function ldGenerate({rows, cmpDate, si, pleuraIdx}, mode){
   }
 
   const noduleBlock = (nAny === 0 ? "> No suspicious nodule at bilateral lung lobes.\n" : "") + findings.join("");
-  const cmpLine = cmpDate ? `This study is compared with previous CT on ${cmpDate}.\n` : "";
+  // 沒填比較日期也要明講「沒有前片」,不能整行消失 —— 中興標準模板本來就有這一行
+  const cmpLine = cmpDate
+    ? `This study is compared with previous CT on ${cmpDate}.\n`
+    : "Comparison with previous study: None\n";
 
   const findingsText =
 `Low dose chest CT without intravenous contrast enhancement with assistance of computer assisted detection shows:
@@ -158,5 +161,8 @@ ${aorta}
 
 function caAutoTotal({lm, lad, cx, rca}){
   const n = x => { const f = parseFloat(x); return isNaN(f) ? 0 : f; };
-  return n(lm) + n(lad) + n(cx) + n(rca);
+  // 各分支分數常帶小數,直接相加會出現 12.299999999999999 這種浮點尾巴 →
+  // 固定取到小數兩位,整數則不留 ".00"
+  const sum = Math.round((n(lm) + n(lad) + n(cx) + n(rca)) * 100) / 100;
+  return Number.isInteger(sum) ? String(sum) : sum.toFixed(2);
 }
