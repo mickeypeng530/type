@@ -153,10 +153,11 @@
     width:auto; min-width:86px; flex:0 0 auto;}
   #xhTime .dash{opacity:.5; font-size:12px; flex:0 0 auto;}
   #xhTotal{font-size:14px; color:var(--accent);}
-  #xhMoney{font-size:14px; color:var(--ok); white-space:nowrap;}
-  #xhMoney.unset{color:var(--muted); font-weight:500; cursor:pointer; text-decoration:underline dotted;}
-  #xhPriceRow{border-top:1px solid var(--line); margin-top:7px; padding-top:7px;}
-  #xhPriceRow input{width:52px; text-align:center; padding:4px 2px; font-size:12.5px; border-radius:7px;}
+  /* 當日金額:接在計數那排「CT 不打藥」後面 */
+  .xhMoneyItem{margin-left:4px; padding:2px 9px; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel2); white-space:nowrap;}
+  #xhMoney{font-size:14px; color:var(--ok); font-weight:700;}
+  #xhMoney.unset{color:var(--muted); font-weight:500; font-size:12.5px;}
   #xhPanel{display:none; padding:4px 0 10px; border-bottom:1px solid var(--line); margin-bottom:8px;}
   #xhBar.open #xhPanel{display:block;}
   /* 六個項目排成一行(第二行是下面的摘要列)。尺寸壓緊以塞進單行;
@@ -467,7 +468,6 @@
     <div id="xhInner">
       <div id="xhPanel">
         <div class="xhGrid" id="xhGrid"></div>
-        <div class="xhGrid" id="xhPriceRow"></div>
       </div>
       <div id="xhLogWrap"><div id="xhLogRow"></div></div>
       <div id="xhKeyWrap">
@@ -489,7 +489,6 @@
         <b id="xhTotal"></b>
         <button class="ghost sm" id="xhWire" title="給 Worknum:第一列是彙總(9 欄:日期 起 訖 + 六項件數),之後每列一筆逐筆事件(4 欄:日期 時間 項目 增減)。到 Worknum 今日 tab 的中興面板按「📥 匯入」貼上">📋 給 Worknum</button>
         <button class="ghost sm" id="xhClear">🗑 清空</button>
-        <b id="xhMoney" title="依單價算的當日金額（只在這邊顯示，不會進到 Worknum 的匯出）"></b>
         <span class="status" id="xhStatus" style="margin:0; min-height:0"></span>
       </div>
     </div>
@@ -499,13 +498,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260821.5"></script>
-<script src="phrases.js?v=20260821.5"></script>
-<script src="cx-templates.js?v=20260821.5"></script>
-<script src="matcher.js?v=20260821.5"></script>
-<script src="report-gen.js?v=20260821.5"></script>
-<script src="anatomy.js?v=20260821.5"></script>
-<script src="expander.js?v=20260821.5"></script>
+<script src="templates.js?v=20260821.6"></script>
+<script src="phrases.js?v=20260821.6"></script>
+<script src="cx-templates.js?v=20260821.6"></script>
+<script src="matcher.js?v=20260821.6"></script>
+<script src="report-gen.js?v=20260821.6"></script>
+<script src="anatomy.js?v=20260821.6"></script>
+<script src="expander.js?v=20260821.6"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1325,10 +1324,14 @@ function xhRenderPanel(){
     }
     g.appendChild(row);
   }
+  // 當日金額:接在「CT 不打藥」後面,同一排
+  const money = document.createElement("span");
+  money.className = "xhItem xhMoneyItem";
+  money.innerHTML = '<b id="xhMoney"></b>';
+  g.appendChild(money);
   const day2 = XH_ALL[xhDate] || {};
   $("xhStart").value = day2.start || "";
   $("xhEnd").value   = day2.end || "";
-  xhRenderPrices();
   xhRenderLog(day2);
   xhLogBtn(day2);
   xhRefreshSummary();
@@ -1360,51 +1363,23 @@ function xhMoney(day){
   return {ok: true, sum: counted.reduce((s, it) => s + xhCount(day, it.key) * Number(XH_PRICES[it.key]), 0)};
 }
 function xhRefreshMoney(){
-  const day = XH_ALL[xhDate], m = xhMoney(day), el = $("xhMoney");
-  if(!xhTotalCount(day)){ el.textContent = ""; el.className = ""; el.title = ""; return; }
+  const el = $("xhMoney"); if(!el) return;        // 面板還沒畫過就沒有這個節點
+  const day = XH_ALL[xhDate], m = xhMoney(day);
+  if(!xhTotalCount(day)){ el.textContent = "$0"; el.className = ""; return; }
   if(m.ok){
     el.textContent = "$" + m.sum.toLocaleString("en-US");
-    el.className = ""; el.title = "依單價算的當日金額(只在這邊顯示,不會進到 Worknum 的匯出)";
+    el.className = "";
+    el.title = "當日中興合計(只在這邊顯示,不會進到給 Worknum 的匯出)";
   }else{
-    el.textContent = "設定單價";
-    el.className = "unset"; el.title = "還沒設單價:" + m.missing.join("、") + "(展開 🧮 計數 面板設定)";
+    el.textContent = "單價未設";
+    el.className = "unset";
+    el.title = "缺單價:" + m.missing.join("、");
   }
-}
-function xhRenderPrices(){
-  const g = $("xhPriceRow"); g.innerHTML = "";
-  const lab = document.createElement("span");
-  lab.className = "hint"; lab.textContent = "單價 $";
-  g.appendChild(lab);
-  for(const it of XH_SCHEMA){
-    const row = document.createElement("div");
-    row.className = "xhItem";
-    const l = document.createElement("label");
-    l.textContent = it.short || it.label; l.title = it.label;
-    const inp = document.createElement("input");
-    inp.type = "number"; inp.inputMode = "numeric"; inp.min = "0"; inp.placeholder = "—";
-    inp.value = XH_PRICES[it.key] != null ? String(XH_PRICES[it.key]) : "";
-    inp.onfocus = e => e.target.select();
-    inp.onchange = e => {
-      const v = Math.max(0, Number(e.target.value) || 0);
-      if(v) XH_PRICES[it.key] = v; else delete XH_PRICES[it.key];
-      localStorage.setItem(XH_PRICE_LS, JSON.stringify(XH_PRICES));
-      if(window.xhPricesCloudSave) window.xhPricesCloudSave(XH_PRICES);
-      xhRefreshMoney();
-      flash($("xhStatus"), "單價已存 ✓");
-    };
-    row.append(l, inp);
-    g.appendChild(row);
-  }
-  const note = document.createElement("span");
-  note.className = "hint";
-  note.textContent = "· 只用來顯示金額,不會送進 Worknum";
-  g.appendChild(note);
 }
 function xhPricesApplyRemote(obj){
   if(JSON.stringify(obj) === JSON.stringify(XH_PRICES)) return;
   XH_PRICES = obj || {};
   localStorage.setItem(XH_PRICE_LS, JSON.stringify(XH_PRICES));
-  if(!document.activeElement || !document.activeElement.closest("#xhPriceRow")) xhRenderPrices();
   xhRefreshMoney();
 }
 
@@ -1469,8 +1444,6 @@ function xhFitBodyInit(){
 
 function xhInit(){
   xhKeysInit();
-  // 金額欄點一下就把計數面板打開(單價設定在裡面)
-  $("xhMoney").onclick = () => { if(!$("xhBar").classList.contains("open")) $("xhToggle").click(); };
   xhFitBodyInit();
   $("xhDate").value = xhDate;
   $("xhBar").classList.toggle("open", localStorage.getItem(XH_OPEN_LS) === "1");
