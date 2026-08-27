@@ -17,6 +17,10 @@
   密碼由 Firebase Auth 保管、程式碼與 RTDB 都不存;換密碼只要在 Console 改)
   + 管理者 Google 登入(owner `deer530530@gmail.com` 才有寫入權)。
   設定在 `firebase-init.js`(OWNER_UID / SHARED_UID / SHARED_EMAIL)。登入提示文字:intra。
+  **改密碼**(2026-08-27):以共用密碼登入時,header 出現「🔑 改密碼」——
+  舊密碼 reauthenticate → `updatePassword`,密碼全程只在瀏覽器裡,程式碼/RTDB 都不存。
+  用 Google(owner)登入時**不顯示**該鈕:`updatePassword` 只能改當下登入的帳號,
+  那樣改到的會是 Google 帳號。忘記密碼的退路仍是 Firebase Console 重設。
 - ✅ **中興模板頁**:14 組、22 個模板(brain 三變體、MRCP 兩變體、
   MSK 五個部位各拆左右兩變體 —— 標題含 `left/right` 的在 parse 時由 `SIDE_RE` 換成單邊,
   髖本來就沒有左右所以維持單一) = 中興 7 組(Brain+TOF / MRCP上腹 / MRI腰薦椎 / MRI全脊椎 / 全身MRI / LDCT / Cardiac Ca)
