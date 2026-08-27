@@ -8,7 +8,9 @@ const LD_C    = ["", "perifissural ", "subpleural "];
 const LD_TYPE = ["", "solid nodule ", "ground glass nodule ", "part-solid nodule ",
                  "calcified nodule ", "Not a true nodule "];
 const LD_SIDE = ["", "RUL", "RML", "RLL", "LUL", "LLL"];
-const LD_ST   = ["", " Stationary.", " Increase size.", " Decrease size."];
+// ⚠ 陣列值 = **輸出到報告的字**;下拉選單上顯示的字另外在 index.html 的 labels 陣列
+//   (第一項刻意不同:選單寫「Stationary」比較好選,報告要的是 "No obvious interval change.")
+const LD_ST   = ["", " No obvious interval change.", " Increase size.", " Decrease size."];
 const LD_PLEURA = ["> Pleura: No pleural effusion, thickening, or pneumothorax.",
                    "> Pleura: Pleural thickening at bilateral lung apices."];
 
