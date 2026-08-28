@@ -181,9 +181,9 @@ def split_extras(body):
 
 
 def tail_blank_after_impression(body):
-    """正文最後一行就是 Impression: 時,後面留一個空行(游標直接接著打)。"""
+    """正文最後一行就是 Impression: 時,後面留兩個空行(游標直接接著打,下面還留一行)。"""
     if re.search(r"\n\s*Impression:?\s*$", body, re.I):
-        return body.rstrip() + "\n"
+        return body.rstrip() + "\n\n"
     return body
 
 
