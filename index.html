@@ -499,8 +499,9 @@
         <button class="ghost sm" id="xhLogToggle" title="逐筆時間紀錄（按一次展開/收起）">📜 紀錄</button>
         <button class="ghost sm" id="xhKeyToggle" title="PACS 快捷鍵小抄（按一次展開/收起，可直接編輯）">⌨️ 快捷鍵</button>
         <input type="date" id="xhDate" style="padding:5px 8px; font-size:13px">
-        <span id="xhTime" title="到中興的起訖時間;Worknum 靠它把這段標成「在中興」,不會被當成空檔">
-          <input type="time" id="xhStart"><span class="dash">–</span><input type="time" id="xhEnd">
+        <span id="xhTime" title="到達 – 離開中興的時間(交換格式 §3.6 的 arrive / leave)。手填,不會由逐筆紀錄推導 —— 到達時間 ≠ 第一筆報告的時間,中間還有準備時間">
+          <span class="hint">到</span>
+          <input type="time" id="xhStart" title="到達中興(或開始準備)的時間"><span class="dash">–</span><input type="time" id="xhEnd" title="離開中興的時間">
         </span>
         <span id="xhSummary"></span>
         <b id="xhTotal"></b>
@@ -515,13 +516,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260827.2"></script>
-<script src="phrases.js?v=20260827.2"></script>
-<script src="cx-templates.js?v=20260827.2"></script>
-<script src="matcher.js?v=20260827.2"></script>
-<script src="report-gen.js?v=20260827.2"></script>
-<script src="anatomy.js?v=20260827.2"></script>
-<script src="expander.js?v=20260827.2"></script>
+<script src="templates.js?v=20260828.2"></script>
+<script src="phrases.js?v=20260828.2"></script>
+<script src="cx-templates.js?v=20260828.2"></script>
+<script src="matcher.js?v=20260828.2"></script>
+<script src="report-gen.js?v=20260828.2"></script>
+<script src="anatomy.js?v=20260828.2"></script>
+<script src="expander.js?v=20260828.2"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -1219,14 +1220,6 @@ function xhAddLog(key, delta){
   day.log = day.log || {};
   day.log[id] = entry;
   xhPendingLog.push([id, entry]);
-  xhDeriveSpan(day);
-}
-// 起訖 = log 的最早/最晚時間;被手動改過的那一格就不再自動覆蓋
-function xhDeriveSpan(day){
-  const ts = xhLogList(day).map(e => e.t).filter(Boolean);
-  if(!ts.length) return;
-  if(!day.sMan) day.start = ts[0];
-  if(!day.eMan) day.end = ts[ts.length - 1];
 }
 
 // 日期用當地日曆日(ymd 走 getFullYear/Month/Date)——toISOString 在台灣早上 8 點前會給前一天
@@ -1235,28 +1228,31 @@ function xhTsv(){
   return [xhDate, day.start || "", day.end || "",
           ...XH_WIRE_KEYS.map(k => xhCount(day, k))].join("\t");
 }
+/* 到達 / 離開時間(交換格式 §3.6)。**手填、不從 log 推導** ——
+   §3.6 的重點就是「到達時間 ≠ 第一筆的時間」:到了還要啟程、準備、找片子,
+   自動用首末筆去填會把準備時間吃掉,讓 $/hr 高估。判讀時段那組由 Worknum 自己從首末筆算。 */
 function setXhTime(which, val){
   const day = xhDay();
   if(val) day[which] = val; else delete day[which];
-  // 手動改過就立旗標,之後逐筆 log 不再覆蓋這一格;清空該格則交還給 log 自動推導
-  const flag = which === "start" ? "sMan" : "eMan";
-  if(val) day[flag] = 1; else { delete day[flag]; xhDeriveSpan(day); }
   if(!Object.keys(day).length) delete XH_ALL[xhDate];
   xhSaveNow();
   xhRenderPanel();
 }
-/* 逐筆格式:一列一筆,四欄 —— 日期 \t 時間 \t 項目 key \t 增減量
-   與彙總那列(9 欄)靠欄數區分。不變式:同一天逐筆各 key 的 d 總和 == 彙總列的件數,
-   所以負數(按錯修正)一定要一起送,不能只挑正的。 */
+/* 逐筆格式(§3.5):一列一筆四欄 —— 日期 	 時間 	 項目 key 	 數量。
+   前面另外插 arrive / leave 兩列(§3.6),三欄、沒有數量欄。 */
 function xhTsvEvents(){
-  return xhLogReal(XH_ALL[xhDate])
-    .map(e => [xhDate, e.t, e.k, e.d].join("\t")).join("\n");
+  const day = XH_ALL[xhDate] || {};
+  const rows = [];
+  if(day.start) rows.push([xhDate, day.start, "arrive"].join("\t"));
+  for(const e of xhLogReal(day)) rows.push([xhDate, e.t, e.k, e.d].join("\t"));
+  if(day.end) rows.push([xhDate, day.end, "leave"].join("\t"));
+  return rows.join("\n");
 }
-/* 一次匯出:第一列彙總(9 欄),之後每列一筆逐筆(4 欄)。
-   Worknum 端逐列看欄數就知道是哪一種,不需要標頭行也不需要兩次貼上。 */
+/* 匯出:**有逐筆就只送逐筆,沒有才送彙總列**(§3.5「送逐筆時不要再送彙總列 ——
+   件數由逐筆加總、時段取首末筆,單一事實來源」)。
+   兩種都送會出現「彙總說 5 筆但逐筆只有 4 筆」對不起來的狀況。 */
 function xhTsvAll(){
-  const ev = xhTsvEvents();
-  return ev ? xhTsv() + "\n" + ev : xhTsv();
+  return xhLogReal(XH_ALL[xhDate]).length ? xhTsvEvents() : xhTsv();
 }
 // 📜 紀錄 鈕上帶筆數,不用展開就知道今天記了幾筆
 function xhLogBtn(day){
