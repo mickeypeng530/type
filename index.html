@@ -142,7 +142,7 @@
   #xhBar{position:fixed; left:0; right:0; bottom:0; z-index:30;
     background:var(--panel); border-top:1px solid var(--line); box-shadow:0 -4px 16px rgba(0,0,0,.35);}
   #xhInner{max-width:1360px; margin:0 auto; padding:8px 12px;}
-  #xhSummaryRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  #xhSummaryRow{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
   #xhSummary{font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; min-width:0; flex:1 1 60px;}
   /* 起訖時間跟計數鈕、日期同一排;壓到最小尺寸,讓步的是摘要文字不是這裡 */
@@ -162,7 +162,7 @@
   #xhBar.open #xhPanel{display:block;}
   /* 六個項目排成一行(第二行是下面的摘要列)。尺寸壓緊以塞進單行;
      真的塞不下才 wrap,不硬性斷欄。 */
-  .xhGrid{display:flex; flex-wrap:wrap; gap:6px 7px; align-items:center;}
+  .xhGrid{display:flex; flex-wrap:wrap; gap:6px 5px; align-items:center;}
   .xhItem{display:flex; gap:2px; align-items:center; font-size:12.5px;}
   .xhItem label{margin:0; font-size:12.5px; color:var(--text); white-space:nowrap;}
   /* 已經有 −/＋ 了,把瀏覽器原生的上下微調鈕拿掉,免得重複 */
@@ -197,8 +197,8 @@
   .xhItem input[type=number]::-webkit-outer-spin-button,
   .xhItem input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
   /* 計數列的按鈕左右留白壓緊(只縮這一條列,不動全站的 button.sm) */
-  .xhItem button{padding:3px 4px; font-size:13.5px; line-height:1; border-radius:7px; min-width:20px;}
-  #xhBar button.sm{padding:6px 7px;}
+  .xhItem button{padding:3px 3px; font-size:13.5px; line-height:1; border-radius:7px; min-width:18px;}
+  #xhBar button.sm{padding:5px 5px;}
   .xhBaseItem{padding:2px 5px; border:1px solid var(--line); border-radius:8px; background:var(--panel2);}
   .xhBaseItem.done{border-color:rgba(63,209,122,.5); background:rgba(63,209,122,.1);}
   .xhProg{font-size:12px; color:var(--muted); font-family:ui-monospace,Consolas,monospace;}
@@ -334,7 +334,8 @@
 
         <div class="genIn">
           <div class="row">
-            <div><label>比較日期(空=無比較)</label><input type="date" id="ldDate"></div>
+            <div><label>比較日期(空=無比較)</label><input type="text" id="ldDate" inputmode="numeric"
+              maxlength="10" placeholder="YYYY-MM-DD" autocomplete="off" style="width:112px"></div>
             <div><label>Series No</label><input type="text" id="ldSI" value="204" style="width:66px"></div>
             <div style="flex:1; min-width:230px"><label>Pleura</label>
               <select id="ldPleura" style="width:100%">
@@ -516,13 +517,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20260828.3"></script>
-<script src="phrases.js?v=20260828.3"></script>
-<script src="cx-templates.js?v=20260828.3"></script>
-<script src="matcher.js?v=20260828.3"></script>
-<script src="report-gen.js?v=20260828.3"></script>
-<script src="anatomy.js?v=20260828.3"></script>
-<script src="expander.js?v=20260828.3"></script>
+<script src="templates.js?v=20260916.1"></script>
+<script src="phrases.js?v=20260916.1"></script>
+<script src="cx-templates.js?v=20260916.1"></script>
+<script src="matcher.js?v=20260916.1"></script>
+<script src="report-gen.js?v=20260916.1"></script>
+<script src="anatomy.js?v=20260916.1"></script>
+<script src="expander.js?v=20260916.1"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -743,7 +744,7 @@ function ldRenumber(){ [...$("ldRows").children].forEach((tr,i) => tr.querySelec
 function ldReset(){ $("ldRows").innerHTML = ""; for(let i=0;i<6;i++) ldAddRow(); }
 function ldRead(){
   return {
-    cmpDate: $("ldDate").value, si: $("ldSI").value.trim(), pleuraIdx: +$("ldPleura").value,
+    cmpDate: ldDateVal(), si: $("ldSI").value.trim(), pleuraIdx: +$("ldPleura").value,
     rows: [...$("ldRows").children].map(tr => ({
       size: tr.querySelector(".ld-size").value.trim(), c: tr.querySelector(".ld-c").value,
       type: tr.querySelector(".ld-type").value, side: tr.querySelector(".ld-side").value,
@@ -756,6 +757,8 @@ $("ldClear").onclick = () => {
   ldReset();
   $("ldPleura").value = "0";              // 清空要回到預設,不然上一份的殘留到下一份
   $("ldDate").value = "";                 // 比較日期同理
+  $("ldSI").value = "204";                // Series No 回預設
+  ["ldDate", "ldSI"].forEach(i => $(i).classList.remove("bad"));
   $("ldWarn").textContent = ""; $("ldWarn").className = "status";
   $("ldFindings").value = ""; $("ldImpression").value = ""; $("ldImgNos").value = "";
   $("ldRadsBadge").innerHTML = "";
@@ -795,6 +798,11 @@ function ldSyncWarn(){
     if(p.length) bad.push(`第 ${i+1} 列(${p.join("、")})`);
   });
   const msgs = [ldDateWarn(st.cmpDate)];
+  // 有打字但不完整 / 不存在的日期 → 產生時會被當成「沒有比較」,一定要講出來
+  const rawDate = $("ldDate").value.trim();
+  const dateBad = rawDate !== "" && !st.cmpDate;
+  $("ldDate").classList.toggle("bad", dateBad);
+  if(dateBad) msgs.push("⚠️ 比較日期不完整或不存在 → 目前會輸出「Comparison with previous study: None」");
   if(bad.length) msgs.push(`⚠️ ${bad.join("、")}不是數字 → 該列不列入 Lung-RADS 計算(文字仍會印出)`);
   const w = msgs.filter(Boolean).join(" · ");
   $("ldWarn").textContent = w; $("ldWarn").className = "status " + (w ? "err" : "");
@@ -821,7 +829,40 @@ $("ldRows").addEventListener("keydown", e => {
   s.dispatchEvent(new Event("change", {bubbles: true}));
   e.preventDefault();
 });
-$("ldDate").addEventListener("change", ldSyncWarn);
+/* 比較日期:原生 <input type=date> 的年份格可以打到 6 位數,打完 4 位不會自動跳到月,
+   只能一直用滑鼠點下一格。改成純文字 + 遮罩:連續打 8 個數字(20250304)
+   就自動排成 2025-03-04,打字中途也即時補上連字號。全形數字一併轉半形。 */
+function ldDateVal(){
+  const v = $("ldDate").value.trim();
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return "";
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);        // 當地時間建構,避開 UTC 位移
+  return (d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3]) ? v : "";
+}
+$("ldDate").addEventListener("input", () => {
+  const el = $("ldDate");
+  const digits = toHalf(el.value).replace(/\D/g, "").slice(0, 8);
+  let out = digits.slice(0, 4);
+  if(digits.length > 4) out += "-" + digits.slice(4, 6);
+  if(digits.length > 6) out += "-" + digits.slice(6, 8);
+  // 剛好打滿年或月時先補上「-」,視覺上等於跳到下一段
+  if(digits.length === 4 || digits.length === 6) out += "-";
+  el.value = out;
+  el.setSelectionRange(out.length, out.length);
+  ldSyncWarn();
+});
+// 刪除時別被上面「自動補 -」卡住:游標前是 - 就連同前一位數字一起刪
+$("ldDate").addEventListener("keydown", e => {
+  const el = $("ldDate");
+  if(e.key !== "Backspace" || el.selectionStart !== el.selectionEnd) return;
+  const p = el.selectionStart;
+  if(p > 0 && el.value[p - 1] === "-"){
+    e.preventDefault();
+    el.value = el.value.slice(0, p - 2) + el.value.slice(p);
+    el.setSelectionRange(p - 2, p - 2);
+    ldSyncWarn();
+  }
+});
 function ldRun(mode){
   const st = ldRead();
   ldSyncWarn();
