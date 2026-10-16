@@ -517,13 +517,13 @@
 <!-- 本機開發資料(gitignored;線上版沒有這些檔 → 走雲端) -->
 <!-- ?v= 版本戳:避免 index.html 與 JS 各自快取到不同版本(部署競態會造成
      「vrBuildIndex is not defined」這類錯誤)。改任一支 JS 就把版本號往上加。 -->
-<script src="templates.js?v=20261016.1"></script>
-<script src="phrases.js?v=20261016.1"></script>
-<script src="cx-templates.js?v=20261016.1"></script>
-<script src="matcher.js?v=20261016.1"></script>
-<script src="report-gen.js?v=20261016.1"></script>
-<script src="anatomy.js?v=20261016.1"></script>
-<script src="expander.js?v=20261016.1"></script>
+<script src="templates.js?v=20261016.2"></script>
+<script src="phrases.js?v=20261016.2"></script>
+<script src="cx-templates.js?v=20261016.2"></script>
+<script src="matcher.js?v=20261016.2"></script>
+<script src="report-gen.js?v=20261016.2"></script>
+<script src="anatomy.js?v=20261016.2"></script>
+<script src="expander.js?v=20261016.2"></script>
 
 <script>
 /* ══════════════════ 共用 ══════════════════ */
@@ -577,6 +577,9 @@ function boot(src, d){
 window.boot = boot;
 
 function switchTab(t){
+  // 從中興頁切到別的分頁也算「離開」;已複製的 LDCT/Ca 一併清空
+  const leaving = localStorage.getItem(LS.tab);
+  if(leaving === "cx" && t !== "cx" && typeof genAutoClear === "function") genAutoClear(cxCur);
   localStorage.setItem(LS.tab, t);
   [...$("tabNav").children].forEach(b => b.classList.toggle("on", b.dataset.tab === t));
   document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("on", s.id === "tab-"+t));
@@ -630,6 +633,7 @@ function cxSelectGroup(group){
 }
 function cxSelect(id){
   const t = DATA.cx.find(x => x.id === id); if(!t) return;
+  if(cxCur && cxCur.id !== t.id) genAutoClear(cxCur);   // 離開 LDCT/Ca 且已複製 → 清空
   cxCur = t;
   [...$("cxBar").children].forEach(b => b.classList.toggle("on", b.dataset.group === t.group));
   const sibs = DATA.cx.filter(x => x.group === t.group);
@@ -864,6 +868,7 @@ $("ldDate").addEventListener("keydown", e => {
   }
 });
 function ldRun(mode){
+  GEN_COPIED.ld = false;                  // 產生了新內容 → 還沒複製
   const st = ldRead();
   ldSyncWarn();
   if(!st.rows.some(r => r.size)) { /* 全空 → 產生「無結節」版本,照 AHK 行為 */ }
@@ -884,10 +889,10 @@ const joinTwo = (a, b, label) => [
   (b || "").trimEnd(),
 ].join("\n");
 $("ldCopyAll").onclick = async () =>
-  flash($("ldStatus"), (await copyText(joinTwo($("ldFindings").value, $("ldImpression").value, "Impression:"))) ? "整篇已複製 ✓" : "複製失敗");
-$("ldCopyF").onclick = async () => flash($("ldStatus"), (await copyText($("ldFindings").value, $("ldFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
-$("ldCopyI").onclick = async () => flash($("ldStatus"), (await copyText($("ldImpression").value, $("ldImpression"))) ? "Impression 已複製 ✓" : "複製失敗");
-$("ldCopyN").onclick = async () => flash($("ldStatus"), (await copyText($("ldImgNos").value, $("ldImgNos"))) ? "Image No 已複製 ✓" : "複製失敗");
+  flash($("ldStatus"), genMark("ld", await copyText(joinTwo($("ldFindings").value, $("ldImpression").value, "Impression:"))) ? "整篇已複製 ✓" : "複製失敗");
+$("ldCopyF").onclick = async () => flash($("ldStatus"), genMark("ld", await copyText($("ldFindings").value, $("ldFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
+$("ldCopyI").onclick = async () => flash($("ldStatus"), genMark("ld", await copyText($("ldImpression").value, $("ldImpression"))) ? "Impression 已複製 ✓" : "複製失敗");
+$("ldCopyN").onclick = async () => flash($("ldStatus"), genMark("ld", await copyText($("ldImgNos").value, $("ldImgNos"))) ? "Image No 已複製 ✓" : "複製失敗");
 
 /* ── Cardiac Ca ── */
 function caRead(){
@@ -913,6 +918,7 @@ $("caAorta").addEventListener("change", () => {
   $("caDiaWrap").style.display = $("caAorta").value === "1" ? "" : "none";
 });
 $("caGen").onclick = () => {
+  GEN_COPIED.ca = false;                  // 產生了新內容 → 還沒複製
   caSyncWarn();
   const r = caGenerate(caRead());
   $("caFindings").value = r.findings; $("caConclusion").value = r.conclusion;
@@ -926,9 +932,32 @@ $("caClear").onclick = () => {
   $("caFindings").value=""; $("caConclusion").value="";
 };
 $("caCopyAll").onclick = async () =>
-  flash($("caStatus"), (await copyText(joinTwo($("caFindings").value, $("caConclusion").value, "Conclusion:"))) ? "整篇已複製 ✓" : "複製失敗");
-$("caCopyF").onclick = async () => flash($("caStatus"), (await copyText($("caFindings").value, $("caFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
-$("caCopyC").onclick = async () => flash($("caStatus"), (await copyText($("caConclusion").value, $("caConclusion"))) ? "Conclusion 已複製 ✓" : "複製失敗");
+  flash($("caStatus"), genMark("ca", await copyText(joinTwo($("caFindings").value, $("caConclusion").value, "Conclusion:"))) ? "整篇已複製 ✓" : "複製失敗");
+$("caCopyF").onclick = async () => flash($("caStatus"), genMark("ca", await copyText($("caFindings").value, $("caFindings"))) ? "Findings 已複製 ✓" : "複製失敗");
+$("caCopyC").onclick = async () => flash($("caStatus"), genMark("ca", await copyText($("caConclusion").value, $("caConclusion"))) ? "Conclusion 已複製 ✓" : "複製失敗");
+
+/* ── LDCT / Ca:複製過再離開才自動清空 ──────────────────────────────
+   「複製」= 這份寫完了;但複製當下不清(可能還要再複製一次)。
+   等真的離開(切到別的範本或別的分頁)才清,下次進來是乾淨的。
+   沒複製就離開 → 不清,打到一半的結節都還在。
+   複製後又改了任何輸入/輸出或重新產生 → 視為還沒複製,要再複製一次才算。 */
+const GEN_COPIED = {ld: false, ca: false};
+function genMark(kind, ok){ if(ok) GEN_COPIED[kind] = true; return ok; }
+["input", "change"].forEach(ev => {
+  $("cxLdct").addEventListener(ev, () => { GEN_COPIED.ld = false; });
+  $("cxCardiac").addEventListener(ev, () => { GEN_COPIED.ca = false; });
+});
+function genAutoClear(t){
+  if(!t) return;
+  if(t.id === "cx-ldct" && GEN_COPIED.ld){
+    $("ldClear").onclick(); GEN_COPIED.ld = false;
+    $("ldWarn").textContent = "上一份已複製,已自動清空"; $("ldWarn").className = "status ok";
+  }
+  if(t.id === "cx-cardiac" && GEN_COPIED.ca){
+    $("caClear").onclick(); GEN_COPIED.ca = false;
+    flash($("caStatus"), "上一份已複製,已自動清空");
+  }
+}
 
 /* ══════════════════ Tab 2:短句 ══════════════════ */
 let SNIP = [], snipKind = "all", snipList = [];
